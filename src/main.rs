@@ -1,12 +1,11 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use reqwest::Client;
 use serde_json::json;
+use std::convert::TryFrom;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-struct Chat {
-    pub message: String,
-}
+use crate::handlers::chat::Chat;
 
+mod handlers;
 #[derive(serde::Deserialize)]
 struct Payload {
     sentence: String,
@@ -26,9 +25,11 @@ async fn embeddings(payload: web::Json<Payload>) -> HttpResponse {
 #[post("/chat")]
 async fn save_chat(payload: web::Json<Chat>) -> HttpResponse {
     // Load the pre-trained model
-
+    let chat = payload.into_inner();
+    // turn the json into object
+    let chat = handlers::chat::save_chat(chat);
     // Stub for embeddings
-    HttpResponse::Ok().json(payload)
+    HttpResponse::Ok().json(chat)
 }
 
 #[get("/chat/{id}")]
