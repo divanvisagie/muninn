@@ -15,3 +15,5 @@ reqwest = "0.11.6"
 uuid = { version = "1.7.0", features = ["v4"] }
 log = "0.4"
 paperclip = { version = "0.8", features = ["actix4"] }
+dirs = "5.0.1"
+chrono = "0.4.19"

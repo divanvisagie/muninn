@@ -1,4 +1,8 @@
-#[derive(Clone, serde::Serialize, Debug)]
+use std::path;
+
+use crate::handlers::chat;
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
     pub role: String,
     pub content: String,
@@ -12,7 +16,7 @@ pub struct FsMessageRepo {
 
 pub trait MessageRepo: Send + Sync {
     fn save_chat(&mut self, user: String, chat: ChatModel) -> ChatModel;
-    fn get_chat(&self, user: String, id: String) -> Result<ChatModel, ()>; // Add user parameter
+    fn get_chat(&mut self, user: String, id: String) -> Result<ChatModel, ()>; // Add user parameter
     fn embeddings_search_for_user(
         &self,
         user: String,
@@ -46,19 +50,60 @@ fn cosine_similarity(v1: &Vec<f32>, v2: &Vec<f32>) -> f32 {
     dot_product / magnitude_product
 }
 
+fn get_path(user: String) -> std::path::PathBuf {
+    let dir = dirs::data_local_dir().unwrap();
+    let todays_date = chrono::Local::now().date_naive();
+    let path = dir.join("muninn").join(user.clone()).join(format!(
+        "{}.json",
+        todays_date.format("%Y-%m-%d").to_string()
+    ));
+    path
+}
+
+fn get_from_fs(user: String) -> Vec<ChatModel> {
+    let path = get_path(user.clone());
+
+    // create directory if it does not exist
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+    let chats: Vec<ChatModel> = match std::fs::read_to_string(&path) {
+        Ok(content) => serde_json::from_str(&content).unwrap(),
+        Err(_) => vec![],
+    };
+    chats
+}
+
 impl MessageRepo for FsMessageRepo {
     fn save_chat(&mut self, user: String, chat: ChatModel) -> ChatModel {
-        let key = (chat.hash.clone(), user); // Create key using hash and user
+        let key = (chat.hash.clone(), user.clone());
         self.memory.insert(key, chat.clone());
-        // Stub for embeddings
+        let path = get_path(user.clone());
+        let mut chats = get_from_fs(user.clone());
+        // append chat to file if it exists or create a new file
+        chats.push(chat.clone());
+        let serialized = serde_json::to_string(&chats).unwrap();
+        std::fs::write(&path, serialized).unwrap();
+
         chat
     }
 
-    fn get_chat(&self, user: String, id: String) -> Result<ChatModel, ()> {
-        let key = (id, user); // Create key using id and user
+    fn get_chat(&mut self, user: String, id: String) -> Result<ChatModel, ()> {
+        let key = (id, user.clone()); // Create key using id and user
+
         match self.memory.get(&key) {
             Some(chat) => Ok(chat.clone()),
-            None => Err(()),
+            None => {
+                let chats = get_from_fs(user.clone());
+                // put these in memory
+                for chat in chats {
+                    let key = (chat.hash.clone(), user.clone());
+                    self.memory.insert(key, chat.clone());
+                }
+                match self.memory.get(&key) {
+                    Some(chat) => Ok(chat.clone()),
+                    None => Err(()),
+                }
+            }
         }
     }
 
