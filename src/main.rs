@@ -1,29 +1,18 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use reqwest::Client;
-use serde_json::json;
-use std::convert::TryFrom;
+use reqwest::{get, Client};
 
-use crate::handlers::chat::Chat;
+use crate::handlers::chat::ChatRequest;
 
 mod handlers;
+mod repos;
 #[derive(serde::Deserialize)]
 struct Payload {
     sentence: String,
 }
 
-#[post("/embeddings")]
-async fn embeddings(payload: web::Json<Payload>) -> HttpResponse {
-    // Load the pre-trained model
-
-    // Stub for embeddings
-    let embeddings = vec![0.1, 0.2, 0.3];
-
-    HttpResponse::Ok().json(embeddings)
-}
-
 // Lets save chatgpt style chat history at this endpoint
-#[post("/chat")]
-async fn save_chat(payload: web::Json<Chat>) -> HttpResponse {
+#[post("/v1/chat")]
+async fn save_chat(payload: web::Json<ChatRequest>) -> HttpResponse {
     // Load the pre-trained model
     let chat = payload.into_inner();
     // turn the json into object
@@ -32,19 +21,17 @@ async fn save_chat(payload: web::Json<Chat>) -> HttpResponse {
     HttpResponse::Ok().json(chat)
 }
 
-#[get("/chat/{id}")]
+#[get("/v1/chat/{id}")]
 async fn get_chat(params: web::Path<(String,)>) -> impl Responder {
     let id = &params.0;
     println!("ID: {}", id);
-    let chat = Chat {
-        message: "Hello".to_string(),
-    };
+    let chat = handlers::chat::get_chat(id.clone());
     HttpResponse::Ok().json(chat)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(embeddings))
+    HttpServer::new(|| App::new().service(save_chat).service(get_chat))
         .bind("127.0.0.1:8080")?
         .run()
         .await

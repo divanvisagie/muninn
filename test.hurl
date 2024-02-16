@@ -1,9 +1,5 @@
-POST http://localhost:8080/embeddings
+POST http://localhost:8080/v1/chat
 {
-    "sentence": "value"
-}
-
-POST http://localhost:8080/chat
-{
-    "message": "value"
+    "content": "Hello, I am a chatbot!",
+    "role": "assistant"
 }
