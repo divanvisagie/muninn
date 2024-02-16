@@ -11,22 +11,25 @@ pub struct ChatRequest {
     pub hash: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct SearchRequest {
+    pub content: String,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct ChatResponse {
     pub role: String,
     pub content: String,
     pub hash: String,
-    pub embedding: Vec<f32>,
 }
 
 impl ChatResponse {
     #[allow(dead_code)]
-    pub fn new(role: String, content: String, hash: String, embedding: Vec<f32>) -> ChatResponse {
+    pub fn new(role: String, content: String, hash: String) -> ChatResponse {
         ChatResponse {
             role,
             content,
             hash,
-            embedding,
         }
     }
     pub fn from_model(model: ChatModel) -> ChatResponse {
@@ -34,7 +37,6 @@ impl ChatResponse {
             role: model.role,
             content: model.content,
             hash: model.hash,
-            embedding: model.embedding,
         }
     }
 }
@@ -49,6 +51,7 @@ pub struct ChatHandlerImpl {
 pub trait ChatHandler: Send + Sync {
     async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()>;
     async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()>;
+    async fn search_chat(&self, query: &String) -> Result<Vec<ChatResponse>, ()>;
 }
 
 #[async_trait]
@@ -82,12 +85,25 @@ impl ChatHandler for ChatHandlerImpl {
             .await
             .get_chat("my_user".to_string(), id.clone())
             .unwrap();
-        let cr = ChatResponse {
-            role: chat.role,
-            content: chat.content,
-            hash: chat.hash,
-            embedding: chat.embedding,
-        };
+        let cr = ChatResponse::from_model(chat);
         Ok(cr.clone())
+    }
+
+    async fn search_chat(&self, query: &String) -> Result<Vec<ChatResponse>, ()> {
+        let repo = self.message_repo.lock().await;
+        let user = "my_user".to_string();
+
+        let embeddings_client = self.embedding_client.lock().await;
+        let query_vector = embeddings_client
+            .get_embeddings(query.clone())
+            .await
+            .unwrap();
+
+        let founds = repo.embeddings_search_for_user(user, query_vector);
+        let chat_responses: Vec<ChatResponse> = founds
+            .iter()
+            .map(|chat| ChatResponse::from_model(chat.clone()))
+            .collect();
+        Ok(chat_responses)
     }
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clients::embeddings::OpenAiEmbeddingsClient;
-use handlers::chat::{ChatHandler, ChatHandlerImpl};
+use handlers::chat::{ChatHandler, ChatHandlerImpl, SearchRequest};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
 
@@ -26,6 +26,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(data.clone())
             .route("/api/v1/chat", web::post().to(save_chat))
             .route("/api/v1/chat/{id}", web::get().to(get_chat))
+            .route("/api/v1/chat/search", web::post().to(search_chat))
     })
     .bind("127.0.0.1:8080")?
     .run()
@@ -58,5 +59,29 @@ async fn get_chat(
     let id = &params.0.clone();
     println!("ID: {}", id);
     let chat = chat_handler.get_chat(id).await;
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            log::error!("Error getting chat");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
+
+async fn search_chat(
+    chat_handler: web::Data<ChatHandlerImpl>,
+    payload: web::Json<SearchRequest>,
+) -> HttpResponse {
+    let chat_handler = chat_handler.into_inner();
+    let query = &payload.content.clone();
+    let chat = chat_handler.search_chat(query).await;
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            log::error!("Error searching chat");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
     HttpResponse::Ok().json(chat)
 }
