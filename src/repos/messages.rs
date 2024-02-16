@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, Debug)]
 pub struct ChatModel {
     pub role: String,
     pub content: String,
@@ -13,7 +13,11 @@ pub struct FsMessageRepo {
 pub trait MessageRepo: Send + Sync {
     fn save_chat(&mut self, user: String, chat: ChatModel) -> ChatModel;
     fn get_chat(&self, user: String, id: String) -> Result<ChatModel, ()>; // Add user parameter
-    fn embeddings_search_for_user(&self, user: String, query_vector: Vec<f32>) -> Vec<ChatModel>;
+    fn embeddings_search_for_user(
+        &self,
+        user: String,
+        query_vector: Vec<f32>,
+    ) -> Vec<(f32, ChatModel)>;
 }
 
 impl FsMessageRepo {
@@ -58,7 +62,11 @@ impl MessageRepo for FsMessageRepo {
         }
     }
 
-    fn embeddings_search_for_user(&self, user: String, query_vector: Vec<f32>) -> Vec<ChatModel> {
+    fn embeddings_search_for_user(
+        &self,
+        user: String,
+        query_vector: Vec<f32>,
+    ) -> Vec<(f32, ChatModel)> {
         let chats = self.get_all_for_user(user);
 
         let mut ranked_chats: Vec<(f32, ChatModel)> = vec![];
@@ -67,9 +75,6 @@ impl MessageRepo for FsMessageRepo {
             ranked_chats.push((similarity, chat));
         }
 
-        ranked_chats.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
-        let ranked_chats: Vec<ChatModel> =
-            ranked_chats.iter().map(|(_, chat)| chat.clone()).collect();
         ranked_chats
     }
 }

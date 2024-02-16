@@ -17,6 +17,24 @@ pub struct SearchRequest {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct SearchResponse {
+    pub role: String,
+    pub content: String,
+    pub hash: String,
+    pub ranking: f32,
+}
+impl SearchResponse {
+    fn from_chat_model(clone: ChatModel, ranking: f32) -> SearchResponse {
+        SearchResponse {
+            role: clone.role,
+            content: clone.content,
+            hash: clone.hash,
+            ranking,
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct ChatResponse {
     pub role: String,
     pub content: String,
@@ -51,7 +69,7 @@ pub struct ChatHandlerImpl {
 pub trait ChatHandler: Send + Sync {
     async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()>;
     async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()>;
-    async fn search_chat(&self, query: &String) -> Result<Vec<ChatResponse>, ()>;
+    async fn search_chat(&self, query: &String) -> Result<Vec<SearchResponse>, ()>;
 }
 
 #[async_trait]
@@ -89,7 +107,7 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(cr.clone())
     }
 
-    async fn search_chat(&self, query: &String) -> Result<Vec<ChatResponse>, ()> {
+    async fn search_chat(&self, query: &String) -> Result<Vec<SearchResponse>, ()> {
         let repo = self.message_repo.lock().await;
         let user = "my_user".to_string();
 
@@ -100,10 +118,12 @@ impl ChatHandler for ChatHandlerImpl {
             .unwrap();
 
         let founds = repo.embeddings_search_for_user(user, query_vector);
-        let chat_responses: Vec<ChatResponse> = founds
+        let founds = founds
             .iter()
-            .map(|chat| ChatResponse::from_model(chat.clone()))
+            .map(|(similarity, chat)| {
+                SearchResponse::from_chat_model(chat.clone(), similarity.clone())
+            })
             .collect();
-        Ok(chat_responses)
+        Ok(founds)
     }
 }
