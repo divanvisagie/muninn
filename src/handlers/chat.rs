@@ -8,7 +8,7 @@ pub struct ChatRequest {
     pub hash: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct ChatResponse {
     pub role: String,
     pub content: String,
@@ -38,8 +38,8 @@ pub fn save_chat(chat: ChatRequest) -> ChatResponse {
     return chat;
 }
 
-pub fn get_chat(id: String) -> ChatResponse {
+pub fn get_chat(id: &String) -> ChatResponse {
     let mut chat = mock_response();
-    chat.hash = id;
+    chat.hash = id.clone();
     return chat;
 }

@@ -5,19 +5,12 @@ use crate::handlers::chat::ChatRequest;
 
 mod handlers;
 mod repos;
-#[derive(serde::Deserialize)]
-struct Payload {
-    sentence: String,
-}
-
 // Lets save chatgpt style chat history at this endpoint
 #[post("/v1/chat")]
 async fn save_chat(payload: web::Json<ChatRequest>) -> HttpResponse {
     // Load the pre-trained model
     let chat = payload.into_inner();
-    // turn the json into object
     let chat = handlers::chat::save_chat(chat);
-    // Stub for embeddings
     HttpResponse::Ok().json(chat)
 }
 
@@ -25,7 +18,7 @@ async fn save_chat(payload: web::Json<ChatRequest>) -> HttpResponse {
 async fn get_chat(params: web::Path<(String,)>) -> impl Responder {
     let id = &params.0;
     println!("ID: {}", id);
-    let chat = handlers::chat::get_chat(id.clone());
+    let chat = handlers::chat::get_chat(id);
     HttpResponse::Ok().json(chat)
 }
 
