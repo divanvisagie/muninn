@@ -61,14 +61,12 @@ impl MessageRepo for FsMessageRepo {
     fn embeddings_search_for_user(&self, user: String, query_vector: Vec<f32>) -> Vec<ChatModel> {
         let chats = self.get_all_for_user(user);
 
-        // rank the chats by similarity to the query_vector
         let mut ranked_chats: Vec<(f32, ChatModel)> = vec![];
         for chat in chats {
             let similarity = cosine_similarity(&chat.embedding, &query_vector);
             ranked_chats.push((similarity, chat));
         }
 
-        //convert to ordered vector and return Vec<ChatModel>
         ranked_chats.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
         let ranked_chats: Vec<ChatModel> =
             ranked_chats.iter().map(|(_, chat)| chat.clone()).collect();
@@ -137,5 +135,22 @@ mod tests {
 
         //test that the result was an error
         assert!(got_chat.is_err());
+    }
+
+    #[test]
+    fn test_embeddings_search_for_user() {
+        let id = Uuid::new_v4().to_string();
+        let chat = ChatModel {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            hash: id.clone(),
+            embedding: vec![0.1, 0.2, 0.3],
+        };
+        let mut repo = FsMessageRepo::new();
+        repo.save_chat("test_user".to_string(), chat.clone());
+
+        let query_vector = vec![0.1, 0.2, 0.3];
+        let results = repo.embeddings_search_for_user("test_user".to_string(), query_vector);
+        assert_eq!(results.len(), 1);
     }
 }
