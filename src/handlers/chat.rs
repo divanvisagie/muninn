@@ -1,9 +1,7 @@
-use actix_web::{http::header::CROSS_ORIGIN_EMBEDDER_POLICY, web, HttpResponse};
 use async_trait::async_trait;
-use uuid::Uuid;
 
-use crate::{clients::embeddings, repos::messages::ChatModel};
-use std::{result, sync::Arc};
+use crate::repos::messages::ChatModel;
+use std::sync::Arc;
 use tokio::sync::Mutex; // Import the TryFutureExt trait
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -22,6 +20,7 @@ pub struct ChatResponse {
 }
 
 impl ChatResponse {
+    #[allow(dead_code)]
     pub fn new(role: String, content: String, hash: String, embedding: Vec<f32>) -> ChatResponse {
         ChatResponse {
             role,
@@ -38,16 +37,6 @@ impl ChatResponse {
             embedding: model.embedding,
         }
     }
-}
-
-fn mock_response() -> ChatResponse {
-    let chat = ChatResponse {
-        role: "user".to_string(),
-        content: "Hello".to_string(),
-        hash: Uuid::new_v4().to_string(),
-        embedding: vec![0.1, 0.2, 0.3],
-    };
-    return chat;
 }
 
 #[derive(Clone)]

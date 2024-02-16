@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use clients::embeddings::OpenAiEmbeddingsClient;
 use handlers::chat::{ChatHandler, ChatHandlerImpl};
 use repos::messages::FsMessageRepo;
-use reqwest::Client;
 use tokio::sync::Mutex;
 
 use crate::handlers::chat::ChatRequest;
@@ -25,8 +24,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .route("/v1/chat", web::post().to(save_chat))
-            .route("/v1/chat/{id}", web::get().to(get_chat))
+            .route("/api/v1/chat", web::post().to(save_chat))
+            .route("/api/v1/chat/{id}", web::get().to(get_chat))
     })
     .bind("127.0.0.1:8080")?
     .run()
@@ -37,7 +36,7 @@ async fn save_chat(
     chat_handler: web::Data<ChatHandlerImpl>,
     payload: web::Json<ChatRequest>,
 ) -> HttpResponse {
-    let mut chat_handler = chat_handler.into_inner();
+    let chat_handler = chat_handler.into_inner();
     let chat = payload.into_inner();
     let chat = chat_handler.save_chat(chat).await;
 
@@ -55,7 +54,7 @@ async fn get_chat(
     chat_handler: web::Data<ChatHandlerImpl>,
     params: web::Path<(String,)>,
 ) -> HttpResponse {
-    let mut chat_handler = chat_handler.into_inner();
+    let chat_handler = chat_handler.into_inner();
     let id = &params.0.clone();
     println!("ID: {}", id);
     let chat = chat_handler.get_chat(id).await;
