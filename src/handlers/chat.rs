@@ -91,7 +91,8 @@ impl ChatHandler for ChatHandlerImpl {
             .message_repo
             .lock()
             .await
-            .get_chat("my_user".to_string(), id.clone());
+            .get_chat("my_user".to_string(), id.clone())
+            .unwrap();
         let cr = ChatResponse {
             role: chat.role,
             content: chat.content,

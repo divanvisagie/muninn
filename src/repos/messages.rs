@@ -1,7 +1,3 @@
-use uuid::Uuid;
-
-use crate::handlers::chat::{ChatRequest, ChatResponse};
-
 #[derive(Clone)]
 pub struct ChatModel {
     pub role: String,
@@ -16,7 +12,7 @@ pub struct FsMessageRepo {
 
 pub trait MessageRepo: Send + Sync {
     fn save_chat(&mut self, user: String, chat: ChatModel) -> ChatModel;
-    fn get_chat(&self, user: String, id: String) -> ChatModel; // Add user parameter
+    fn get_chat(&self, user: String, id: String) -> Result<ChatModel, ()>; // Add user parameter
     fn embeddings_search_for_user(&self, user: String, query_vector: Vec<f32>) -> Vec<ChatModel>;
 }
 
@@ -51,13 +47,15 @@ impl MessageRepo for FsMessageRepo {
         let key = (chat.hash.clone(), user); // Create key using hash and user
         self.memory.insert(key, chat.clone());
         // Stub for embeddings
-        return chat;
+        chat
     }
 
-    fn get_chat(&self, user: String, id: String) -> ChatModel {
+    fn get_chat(&self, user: String, id: String) -> Result<ChatModel, ()> {
         let key = (id, user); // Create key using id and user
-        let chat = self.memory.get(&key).unwrap();
-        return chat.clone();
+        match self.memory.get(&key) {
+            Some(chat) => Ok(chat.clone()),
+            None => Err(()),
+        }
     }
 
     fn embeddings_search_for_user(&self, user: String, query_vector: Vec<f32>) -> Vec<ChatModel> {
@@ -74,32 +72,70 @@ impl MessageRepo for FsMessageRepo {
         ranked_chats.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
         let ranked_chats: Vec<ChatModel> =
             ranked_chats.iter().map(|(_, chat)| chat.clone()).collect();
-        return ranked_chats;
+        ranked_chats
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
     #[test]
-    fn test_save_chat() {
+    fn test_save_chat_and_get_chat() {
+        let id = Uuid::new_v4().to_string();
         let chat = ChatModel {
             role: "user".to_string(),
             content: "Hello".to_string(),
-            hash: Uuid::new_v4().to_string(),
+            hash: id.clone(),
             embedding: vec![0.1, 0.2, 0.3],
         };
-        let id = chat.hash.clone();
         let expected_hash = id.clone();
         let expected_role = chat.role.clone();
         let expected_content = chat.content.clone();
 
         let mut repo = FsMessageRepo::new();
-        repo.save_chat("test-user".to_string(), chat.clone()); // Pass user parameter
+        repo.save_chat("test_user".to_string(), chat.clone()); // Pass user parameter
 
-        let got_chat = repo.get_chat(id, "test-user".to_string()); // Pass user parameter
+        let got_chat = repo.get_chat("test_user".to_string(), id).unwrap(); // Pass user parameter
         assert_eq!(got_chat.role, expected_role);
         assert_eq!(got_chat.content, expected_content);
         assert_eq!(got_chat.hash, expected_hash);
+    }
+
+    #[test]
+    fn test_get_chat_when_no_user() {
+        let id = Uuid::new_v4().to_string();
+        let chat = ChatModel {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            hash: id.clone(),
+            embedding: vec![0.1, 0.2, 0.3],
+        };
+        let mut repo = FsMessageRepo::new();
+        repo.save_chat("test_user".to_string(), chat.clone());
+
+        let got_chat = repo.get_chat("test_user2".to_string(), id);
+
+        //test that the result was an error
+        assert!(got_chat.is_err());
+    }
+
+    #[test]
+    fn test_get_when_there_is_no_chat() {
+        let id = Uuid::new_v4().to_string();
+        let chat = ChatModel {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            hash: id.clone(),
+            embedding: vec![0.1, 0.2, 0.3],
+        };
+        let mut repo = FsMessageRepo::new();
+        repo.save_chat("test_user".to_string(), chat.clone());
+
+        let got_chat = repo.get_chat("test_user".to_string(), uuid::Uuid::new_v4().to_string());
+
+        //test that the result was an error
+        assert!(got_chat.is_err());
     }
 }
