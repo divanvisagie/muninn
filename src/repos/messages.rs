@@ -2,12 +2,20 @@ use uuid::Uuid;
 
 use crate::handlers::chat::{ChatRequest, ChatResponse};
 
-pub struct FsMessageRepo {
-    memory: std::collections::HashMap<String, ChatResponse>,
+#[derive(Clone)]
+pub struct ChatModel {
+    pub role: String,
+    pub content: String,
+    pub hash: String,
+    pub embedding: Vec<f32>,
 }
-pub trait MessageRepo {
-    fn save_chat(&mut self, chat: ChatRequest) -> ChatResponse;
-    fn get_chat(&self, id: String) -> ChatResponse;
+
+pub struct FsMessageRepo {
+    memory: std::collections::HashMap<String, ChatModel>,
+}
+pub trait MessageRepo: Send + Sync {
+    fn save_chat(&mut self, chat: ChatModel) -> ChatModel;
+    fn get_chat(&self, id: String) -> ChatModel;
 }
 impl FsMessageRepo {
     pub fn new() -> FsMessageRepo {
@@ -17,20 +25,13 @@ impl FsMessageRepo {
     }
 }
 impl MessageRepo for FsMessageRepo {
-    fn save_chat(&mut self, chat: ChatRequest) -> ChatResponse {
-        // Load the pre-trained model
-        let chat = ChatResponse {
-            role: chat.role,
-            content: chat.content,
-            hash: chat.hash,
-            embedding: vec![0.1, 0.2, 0.3],
-        };
+    fn save_chat(&mut self, chat: ChatModel) -> ChatModel {
         self.memory.insert(chat.hash.clone(), chat.clone());
         // Stub for embeddings
         return chat;
     }
 
-    fn get_chat(&self, _id: String) -> ChatResponse {
+    fn get_chat(&self, _id: String) -> ChatModel {
         let chat = self.memory.get(&_id).unwrap();
         return chat.clone();
     }
@@ -41,10 +42,11 @@ mod tests {
     use super::*;
     #[test]
     fn test_save_chat() {
-        let chat = ChatRequest {
+        let chat = ChatModel {
             role: "user".to_string(),
             content: "Hello".to_string(),
             hash: Uuid::new_v4().to_string(),
+            embedding: vec![0.1, 0.2, 0.3],
         };
         let id = chat.hash.clone();
         let expected_hash = id.clone();
