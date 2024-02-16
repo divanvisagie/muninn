@@ -81,13 +81,17 @@ impl ChatHandler for ChatHandlerImpl {
         };
 
         let mut message_repo = self.message_repo.lock().await;
-        let result = message_repo.save_chat(cm.clone());
+        let result = message_repo.save_chat("my_user".to_string(), cm.clone());
         let cr = ChatResponse::from_model(result);
         Ok(cr)
     }
 
     async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()> {
-        let chat = self.message_repo.lock().await.get_chat(id.clone());
+        let chat = self
+            .message_repo
+            .lock()
+            .await
+            .get_chat("my_user".to_string(), id.clone());
         let cr = ChatResponse {
             role: chat.role,
             content: chat.content,
