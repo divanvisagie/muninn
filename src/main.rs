@@ -5,6 +5,7 @@ use clients::embeddings::OpenAiEmbeddingsClient;
 use handlers::chat::{ChatHandler, ChatHandlerImpl, SearchRequest};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
+use tracing::error;
 
 use crate::handlers::chat::ChatRequest;
 
@@ -14,6 +15,7 @@ mod repos;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt::init();
     let chat_handler = ChatHandlerImpl {
         embedding_client: Arc::new(Mutex::new(OpenAiEmbeddingsClient::new())),
         message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
@@ -28,7 +30,7 @@ async fn main() -> std::io::Result<()> {
             .route("/api/v1/chat/{id}", web::get().to(get_chat))
             .route("/api/v1/chat/search", web::post().to(search_chat))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
@@ -45,7 +47,7 @@ async fn save_chat(
     match chat {
         Ok(chat) => HttpResponse::Ok().json(chat),
         Err(_) => {
-            log::error!("Error saving chat");
+            error!("Error saving chat");
             HttpResponse::InternalServerError().finish()
         }
     }
@@ -62,7 +64,7 @@ async fn get_chat(
     let chat = match chat {
         Ok(chat) => chat,
         Err(_) => {
-            log::error!("Error getting chat");
+            error!("Error getting chat");
             return HttpResponse::InternalServerError().finish();
         }
     };
@@ -79,7 +81,7 @@ async fn search_chat(
     let chat = match chat {
         Ok(chat) => chat,
         Err(_) => {
-            log::error!("Error searching chat");
+            error!("Error searching chat");
             return HttpResponse::InternalServerError().finish();
         }
     };

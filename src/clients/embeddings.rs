@@ -3,6 +3,7 @@ use std::env;
 use async_trait::async_trait;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 pub struct OpenAiEmbeddingsClient {}
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,12 +77,20 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
         let response = match response {
             Ok(response) => response.text().await.unwrap(),
             Err(e) => {
-                log::error!("Error: {}", e);
-                "Error".to_string()
+                error!("Error in response: {}", e);
+                return Err(Box::new(e));
             }
         };
 
-        let response_object: EmbeddingsResponse = serde_json::from_str(&response).unwrap();
+        info!("Response: {}", response);
+
+        let response_object: EmbeddingsResponse = match serde_json::from_str(&response) {
+            Ok(object) => object,
+            Err(e) => {
+                error!("Error in respone object: {}", e);
+                return Err(Box::new(e));
+            }
+        };
 
         let embeddings = response_object.data[0].embedding.clone();
         Ok(embeddings)

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tracing::error;
 
 use crate::repos::messages::ChatModel;
 use std::sync::Arc;
@@ -80,7 +81,10 @@ impl ChatHandler for ChatHandlerImpl {
 
         let embeddings = match embeddings_result {
             Ok(embeddings) => embeddings,
-            Err(_) => return Err(()),
+            Err(_) => {
+                error!("Failed to get embeddings");
+                return Err(());
+            }
         };
 
         let cm = ChatModel {
@@ -97,12 +101,19 @@ impl ChatHandler for ChatHandlerImpl {
     }
 
     async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()> {
-        let chat = self
+        let chat = match self
             .message_repo
             .lock()
             .await
             .get_chat("my_user".to_string(), id.clone())
-            .unwrap();
+        {
+            Ok(chat) => chat,
+            Err(_) => {
+                error!("Failed to get chat");
+                return Err(());
+            }
+        };
+
         let cr = ChatResponse::from_model(chat);
         Ok(cr.clone())
     }

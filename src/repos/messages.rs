@@ -1,3 +1,5 @@
+use tracing::error;
+
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
     pub role: String,
@@ -47,7 +49,10 @@ fn cosine_similarity(v1: &Vec<f32>, v2: &Vec<f32>) -> f32 {
 }
 
 fn get_path(user: String) -> std::path::PathBuf {
-    let dir = dirs::data_local_dir().unwrap();
+    let dir = match std::env::var("MESSAGE_STORAGE_DIR") {
+        Ok(val) => std::path::PathBuf::from(val),
+        Err(_) => dirs::data_local_dir().unwrap(),
+    };
     let todays_date = chrono::Local::now().date_naive();
     let path = dir.join("muninn").join(user.clone()).join(format!(
         "{}.json",
@@ -97,7 +102,10 @@ impl MessageRepo for FsMessageRepo {
                 }
                 match self.memory.get(&key) {
                     Some(chat) => Ok(chat.clone()),
-                    None => Err(()),
+                    None => {
+                        error!("Chat not found");
+                        Err(())
+                    }
                 }
             }
         }
