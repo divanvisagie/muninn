@@ -1,11 +1,6 @@
 # Use the official Rust image as the base image
 FROM rust:latest
 
-# Grab the OPENAI_API_KEY from the environment
-ARG OPENAI_API_KEY
-ARG MESSAGE_STORAGE_DIR
-ARG DOCUMENT_STORAGE_DIR
-
 # Set the working directory inside the container
 WORKDIR /app
 
