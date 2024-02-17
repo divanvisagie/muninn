@@ -82,8 +82,6 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
             }
         };
 
-        info!("Response: {}", response);
-
         let response_object: EmbeddingsResponse = match serde_json::from_str(&response) {
             Ok(object) => object,
             Err(e) => {
