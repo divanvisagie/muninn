@@ -1,7 +1,3 @@
-use std::path;
-
-use crate::handlers::chat;
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
     pub role: String,
