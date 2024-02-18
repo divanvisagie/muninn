@@ -138,3 +138,55 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(founds)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{clients::embeddings::MockEmbeddingsClient, repos::messages::MockMessageRepo};
+
+    use super::*;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_save_chat_and_get_chat() {
+        let id = Uuid::new_v4().to_string();
+        let chat = ChatRequest {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            hash: id.clone(),
+        };
+        let expected_hash = id.clone();
+        let expected_role = chat.role.clone();
+        let expected_content = chat.content.clone();
+
+        let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
+        let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
+
+        let chat_handler = ChatHandlerImpl {
+            embedding_client: mock_embeddings.clone(),
+            message_repo: mock_repo.clone(),
+        };
+
+        chat_handler.save_chat(chat).await.unwrap();
+
+        let got_chat = chat_handler.get_chat(&id).await.unwrap();
+        assert_eq!(got_chat.role, expected_role);
+        assert_eq!(got_chat.content, expected_content);
+        assert_eq!(got_chat.hash, expected_hash);
+    }
+
+    #[tokio::test]
+    async fn test_search_chat() {
+        let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
+        let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
+
+        let chat_handler = ChatHandlerImpl {
+            embedding_client: mock_embeddings.clone(),
+            message_repo: mock_repo.clone(),
+        };
+
+        let query = "Hello".to_string();
+        let founds = chat_handler.search_chat(&query).await.unwrap();
+        assert_eq!(founds.len(), 1);
+        assert!(founds[0].ranking > 0.0);
+    }
+}

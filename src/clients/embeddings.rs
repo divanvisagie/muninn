@@ -94,3 +94,25 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
         Ok(embeddings)
     }
 }
+
+/**
+ * Mocking the embeddings client
+ */
+pub struct MockEmbeddingsClient {}
+impl MockEmbeddingsClient {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        MockEmbeddingsClient {}
+    }
+}
+
+#[async_trait]
+impl EmbeddingsClient for MockEmbeddingsClient {
+    async fn get_embeddings(
+        &self,
+        text: String,
+    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+        info!("Mocking embeddings for: {}", text);
+        Ok(vec![0.0, 0.0, 0.0])
+    }
+}
