@@ -1,4 +1,4 @@
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
@@ -49,7 +49,7 @@ fn cosine_similarity(v1: &Vec<f32>, v2: &Vec<f32>) -> f32 {
 }
 
 fn get_path(user: String) -> std::path::PathBuf {
-    let dir = match std::env::var("MESSAGE_STORAGE_DIR") {
+    let dir = match std::env::var("MESSAGE_STORAGE_PATH") {
         Ok(val) => std::path::PathBuf::from(val),
         Err(_) => dirs::data_local_dir().unwrap(),
     };
@@ -83,7 +83,14 @@ impl MessageRepo for FsMessageRepo {
         // append chat to file if it exists or create a new file
         chats.push(chat.clone());
         let serialized = serde_json::to_string(&chats).unwrap();
-        std::fs::write(&path, serialized).unwrap();
+
+        info!("Writing to file: {:?}", path);
+        match std::fs::write(&path, serialized) {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Error writing to file: {}", e)
+            }
+        }
 
         chat
     }

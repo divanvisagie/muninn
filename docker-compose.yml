@@ -7,3 +7,5 @@ services:
     ports:
       - "8080:8080"
     restart: always
+    volumes:
+      - ./data/messages/:/root/.local/share/muninn:rw
