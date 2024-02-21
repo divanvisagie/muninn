@@ -9,5 +9,5 @@ echo $GH_TOKEN | docker login ghcr.io -u $GH_USERNAME --password-stdin
 # Build and push multi-platform image
 docker buildx build --platform linux/amd64,linux/arm64 \
   --push \
-  -t ghcr.io/$GH_USERNAME/Muninn:latest .
+  -t ghcr.io/$GH_USERNAME/muninn:latest .
 
