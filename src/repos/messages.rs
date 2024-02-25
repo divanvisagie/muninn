@@ -19,6 +19,7 @@ pub trait MessageRepo: Send + Sync {
         user: String,
         query_vector: Vec<f32>,
     ) -> Vec<(f32, ChatModel)>;
+    fn get_all_for_user(&self, user: String) -> Vec<ChatModel>;
 }
 
 impl FsMessageRepo {
@@ -117,6 +118,11 @@ impl MessageRepo for FsMessageRepo {
         }
     }
 
+    fn get_all_for_user(&self, user: String) -> Vec<ChatModel> {
+        let r = get_from_fs(user.clone());
+        r
+    }
+
     fn embeddings_search_for_user(
         &self,
         user: String,
@@ -148,6 +154,10 @@ impl MockMessageRepo {
 impl MessageRepo for MockMessageRepo {
     fn save_chat(&mut self, _user: String, chat: ChatModel) -> ChatModel {
         chat
+    }
+
+    fn get_all_for_user(&self, _user: String) -> Vec<ChatModel> {
+        vec![]
     }
 
     fn get_chat(&mut self, _user: String, id: String) -> Result<ChatModel, ()> {

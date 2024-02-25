@@ -26,9 +26,16 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .route("/api/v1/chat", web::post().to(save_chat))
-            .route("/api/v1/chat/{id}", web::get().to(get_chat))
-            .route("/api/v1/chat/search", web::post().to(search_chat))
+            .route("/api/v1/chat/{username}", web::post().to(save_chat))
+            .route("/api/v1/chat/{username}/{id}", web::get().to(get_chat))
+            .route(
+                "/api/v1/chat/{username}/context",
+                web::get().to(get_context),
+            )
+            .route(
+                "/api/v1/chat/{username}/search",
+                web::post().to(search_chat),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()
@@ -55,12 +62,12 @@ async fn save_chat(
 
 async fn get_chat(
     chat_handler: web::Data<ChatHandlerImpl>,
-    params: web::Path<(String,)>,
+    params: web::Path<(String, String)>,
 ) -> HttpResponse {
     let chat_handler = chat_handler.into_inner();
-    let id = &params.0.clone();
-    println!("ID: {}", id);
-    let chat = chat_handler.get_chat(id).await;
+    let username = &params.0.clone();
+    let id = &params.1.clone();
+    let chat = chat_handler.get_chat(username, id).await;
     let chat = match chat {
         Ok(chat) => chat,
         Err(_) => {
@@ -70,14 +77,32 @@ async fn get_chat(
     };
     HttpResponse::Ok().json(chat)
 }
+async fn get_context(
+    chat_handler: web::Data<ChatHandlerImpl>,
+    params: web::Path<(String,)>,
+) -> HttpResponse {
+    let chat_handler = chat_handler.into_inner();
+    let username = &params.0.clone();
+    let chat = chat_handler.get_context(username).await;
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            error!("Error getting chat context");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
 
 async fn search_chat(
     chat_handler: web::Data<ChatHandlerImpl>,
+    params: web::Path<(String,)>,
     payload: web::Json<SearchRequest>,
 ) -> HttpResponse {
     let chat_handler = chat_handler.into_inner();
+    let username = &params.0.clone();
     let query = &payload.content.clone();
-    let chat = chat_handler.search_chat(query).await;
+    let chat = chat_handler.search_chat(username, query).await;
     let chat = match chat {
         Ok(chat) => chat,
         Err(_) => {

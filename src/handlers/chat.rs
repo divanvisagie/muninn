@@ -2,22 +2,23 @@ use async_trait::async_trait;
 use tracing::error;
 
 use crate::repos::messages::ChatModel;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex; // Import the TryFutureExt trait
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ChatRequest {
     pub role: String,
     pub content: String,
     pub hash: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct SearchRequest {
     pub content: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct SearchResponse {
     pub role: String,
     pub content: String,
@@ -35,7 +36,7 @@ impl SearchResponse {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct ChatResponse {
     pub role: String,
     pub content: String,
@@ -68,13 +69,38 @@ pub struct ChatHandlerImpl {
 
 #[async_trait]
 pub trait ChatHandler: Send + Sync {
+    /// Saves a chat message and returns the saved chat message.
     async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()>;
-    async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()>;
-    async fn search_chat(&self, query: &String) -> Result<Vec<SearchResponse>, ()>;
+
+    /// Gets a chat message by its id.
+    async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()>;
+
+    /// Builds a context for a user based on their chat history.
+    async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()>;
+
+    /// Searches for chat messages similar to the provided query.
+    async fn search_chat(
+        &self,
+        username: &String,
+        query: &String,
+    ) -> Result<Vec<SearchResponse>, ()>;
 }
 
 #[async_trait]
 impl ChatHandler for ChatHandlerImpl {
+    async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()> {
+        let chats = self
+            .message_repo
+            .lock()
+            .await
+            .get_all_for_user(username.clone());
+
+        Ok(chats
+            .iter()
+            .map(|chat| ChatResponse::from_model(chat.clone()))
+            .collect())
+    }
+
     async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()> {
         let embeddings_client = self.embedding_client.lock().await;
         let embeddings_result = embeddings_client.get_embeddings(chat.content.clone()).await;
@@ -100,12 +126,12 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(cr)
     }
 
-    async fn get_chat(&self, id: &String) -> Result<ChatResponse, ()> {
+    async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()> {
         let chat = match self
             .message_repo
             .lock()
             .await
-            .get_chat("my_user".to_string(), id.clone())
+            .get_chat(username.clone(), id.clone())
         {
             Ok(chat) => chat,
             Err(_) => {
@@ -118,9 +144,12 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(cr.clone())
     }
 
-    async fn search_chat(&self, query: &String) -> Result<Vec<SearchResponse>, ()> {
+    async fn search_chat(
+        &self,
+        username: &String,
+        query: &String,
+    ) -> Result<Vec<SearchResponse>, ()> {
         let repo = self.message_repo.lock().await;
-        let user = "my_user".to_string();
 
         let embeddings_client = self.embedding_client.lock().await;
         let query_vector = embeddings_client
@@ -128,7 +157,7 @@ impl ChatHandler for ChatHandlerImpl {
             .await
             .unwrap();
 
-        let founds = repo.embeddings_search_for_user(user, query_vector);
+        let founds = repo.embeddings_search_for_user(username.clone(), query_vector);
         let founds = founds
             .iter()
             .map(|(similarity, chat)| {
@@ -141,6 +170,8 @@ impl ChatHandler for ChatHandlerImpl {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Borrow;
+
     use crate::{clients::embeddings::MockEmbeddingsClient, repos::messages::MockMessageRepo};
 
     use super::*;
@@ -168,7 +199,10 @@ mod tests {
 
         chat_handler.save_chat(chat).await.unwrap();
 
-        let got_chat = chat_handler.get_chat(&id).await.unwrap();
+        let got_chat = chat_handler
+            .get_chat("test_user".to_string().borrow(), &id)
+            .await
+            .unwrap();
         assert_eq!(got_chat.role, expected_role);
         assert_eq!(got_chat.content, expected_content);
         assert_eq!(got_chat.hash, expected_hash);
@@ -185,7 +219,10 @@ mod tests {
         };
 
         let query = "Hello".to_string();
-        let founds = chat_handler.search_chat(&query).await.unwrap();
+        let founds = chat_handler
+            .search_chat("test_user".to_string().borrow(), &query)
+            .await
+            .unwrap();
         assert_eq!(founds.len(), 1);
         assert!(founds[0].ranking > 0.0);
     }
