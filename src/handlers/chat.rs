@@ -101,7 +101,7 @@ impl ChatHandler for ChatHandlerImpl {
             .collect())
     }
 
-    async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()> {
+    async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()> {
         let embeddings_client = self.embedding_client.lock().await;
         let embeddings_result = embeddings_client.get_embeddings(chat.content.clone()).await;
 
@@ -121,7 +121,7 @@ impl ChatHandler for ChatHandlerImpl {
         };
 
         let mut message_repo = self.message_repo.lock().await;
-        let result = message_repo.save_chat("my_user".to_string(), cm.clone());
+        let result = message_repo.save_chat(username, cm.clone());
         let cr = ChatResponse::from_model(result);
         Ok(cr)
     }

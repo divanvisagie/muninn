@@ -44,11 +44,13 @@ async fn main() -> std::io::Result<()> {
 
 async fn save_chat(
     chat_handler: web::Data<ChatHandlerImpl>,
+    params: web::Path<(String,)>,
     payload: web::Json<ChatRequest>,
 ) -> HttpResponse {
+    let username = &params.0.clone();
     let chat_handler = chat_handler.into_inner();
     let chat = payload.into_inner();
-    let chat = chat_handler.save_chat(chat).await;
+    let chat = chat_handler.save_chat(username, chat).await;
 
     //Check the result and return the appropriate response
     match chat {
