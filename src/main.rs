@@ -27,11 +27,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(data.clone())
             .route("/api/v1/chat/{username}", web::post().to(save_chat))
-            .route("/api/v1/chat/{username}/{id}", web::get().to(get_chat))
             .route(
                 "/api/v1/chat/{username}/context",
                 web::get().to(get_context),
             )
+            .route("/api/v1/chat/{username}/{id}", web::get().to(get_chat))
             .route(
                 "/api/v1/chat/{username}/search",
                 web::post().to(search_chat),

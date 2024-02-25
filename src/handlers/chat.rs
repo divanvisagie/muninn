@@ -135,7 +135,7 @@ impl ChatHandler for ChatHandlerImpl {
         {
             Ok(chat) => chat,
             Err(_) => {
-                error!("Failed to get chat");
+                error!("Failed to get_chat");
                 return Err(());
             }
         };
