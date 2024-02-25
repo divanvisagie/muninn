@@ -70,7 +70,7 @@ pub struct ChatHandlerImpl {
 #[async_trait]
 pub trait ChatHandler: Send + Sync {
     /// Saves a chat message and returns the saved chat message.
-    async fn save_chat(&self, chat: ChatRequest) -> Result<ChatResponse, ()>;
+    async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()>;
 
     /// Gets a chat message by its id.
     async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()>;
@@ -121,7 +121,7 @@ impl ChatHandler for ChatHandlerImpl {
         };
 
         let mut message_repo = self.message_repo.lock().await;
-        let result = message_repo.save_chat(username, cm.clone());
+        let result = message_repo.save_chat(username.clone(), cm.clone());
         let cr = ChatResponse::from_model(result);
         Ok(cr)
     }
@@ -197,7 +197,10 @@ mod tests {
             message_repo: mock_repo.clone(),
         };
 
-        chat_handler.save_chat(chat).await.unwrap();
+        chat_handler
+            .save_chat("test_user".to_string().borrow(), chat)
+            .await
+            .unwrap();
 
         let got_chat = chat_handler
             .get_chat("test_user".to_string().borrow(), &id)
