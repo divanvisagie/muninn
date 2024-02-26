@@ -1,0 +1,13 @@
+[Unit]
+Description=Muninn Service
+After=network.target
+
+[Service]
+ExecStart=/home/divanvisagie/src/muninn/target/release/muninn
+WorkingDirectory=/home/divanvisagie/src/muninn/target/release/
+Restart=always
+User=divanvisagie
+Group=divanvisagie
+
+[Install]
+WantedBy=multi-user.target
