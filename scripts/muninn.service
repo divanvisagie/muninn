@@ -3,6 +3,7 @@ Description=Muninn Service
 After=network.target
 
 [Service]
+EnvironmentFile=/home/divanvisagie/src/muninn/.env
 ExecStart=/home/divanvisagie/src/muninn/target/release/muninn
 WorkingDirectory=/home/divanvisagie/src/muninn/target/release/
 Restart=always
