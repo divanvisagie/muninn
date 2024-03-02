@@ -141,8 +141,8 @@ impl ChatHandler for ChatHandlerImpl {
             }
         };
 
-        let cr = ChatResponse::from_model(chat);
-        Ok(cr.clone())
+        let chat_response = ChatResponse::from_model(chat);
+        Ok(chat_response.clone())
     }
 
     async fn search_chat(
@@ -173,10 +173,65 @@ impl ChatHandler for ChatHandlerImpl {
 mod tests {
     use std::borrow::Borrow;
 
-    use crate::{clients::embeddings::MockEmbeddingsClient, repos::messages::MockMessageRepo};
+    use crate::{clients::embeddings::MockEmbeddingsClient, repos::messages::MessageRepo};
 
     use super::*;
     use uuid::Uuid;
+
+    struct MockMessageRepo {
+        chats: Vec<ChatModel>,
+    }
+
+    impl MockMessageRepo {
+        fn new() -> MockMessageRepo {
+            MockMessageRepo {
+                chats: vec![ChatModel {
+                    role: "user".to_string(),
+                    content: "Hello".to_string(),
+                    hash: "123".to_string(),
+                    embedding: vec![0.0, 0.0, 0.0],
+                }],
+            }
+        }
+    }
+
+    impl MessageRepo for MockMessageRepo {
+        fn save_chat(
+            &mut self,
+            _date: chrono::NaiveDate,
+            _username: String,
+            chat: ChatModel,
+        ) -> ChatModel {
+            self.chats.push(chat.clone());
+            chat
+        }
+
+        fn get_chat(&mut self, _username: String, id: String) -> Result<ChatModel, ()> {
+            let chat = self
+                .chats
+                .iter()
+                .find(|chat| chat.hash == id)
+                .unwrap()
+                .clone();
+            Ok(chat)
+        }
+
+        fn get_all_for_user(&self, _username: String) -> Vec<ChatModel> {
+            self.chats.clone()
+        }
+
+        fn embeddings_search_for_user(
+            &self,
+            _username: String,
+            _query_vector: Vec<f32>,
+        ) -> Vec<(f32, ChatModel)> {
+            let mut result = vec![];
+            for chat in self.chats.iter() {
+                result.push((0.5, chat.clone()));
+            }
+            result
+        }
+    }
 
     #[tokio::test]
     async fn test_save_chat_and_get_chat() {

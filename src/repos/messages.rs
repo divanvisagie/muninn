@@ -172,52 +172,6 @@ impl MessageRepo for FsMessageRepo {
     }
 }
 
-/**
- * Mocking the message repo
- */
-
-pub struct MockMessageRepo {}
-impl MockMessageRepo {
-    #[allow(dead_code)]
-    pub fn new() -> Self {
-        MockMessageRepo {}
-    }
-}
-impl MessageRepo for MockMessageRepo {
-    fn save_chat(&mut self, _date: NaiveDate, _user: String, chat: ChatModel) -> ChatModel {
-        chat
-    }
-
-    fn get_all_for_user(&self, _user: String) -> Vec<ChatModel> {
-        vec![]
-    }
-
-    fn get_chat(&mut self, _user: String, id: String) -> Result<ChatModel, ()> {
-        Ok(ChatModel {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            hash: id.clone(),
-            embedding: vec![0.1, 0.2, 0.3],
-        })
-    }
-
-    fn embeddings_search_for_user(
-        &self,
-        _user: String,
-        _query_vector: Vec<f32>,
-    ) -> Vec<(f32, ChatModel)> {
-        vec![(
-            0.1,
-            ChatModel {
-                role: "user".to_string(),
-                content: "Hello".to_string(),
-                hash: "123".to_string(),
-                embedding: vec![0.1, 0.2, 0.3],
-            },
-        )]
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
