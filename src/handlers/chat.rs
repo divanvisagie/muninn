@@ -113,7 +113,7 @@ impl ChatHandler for ChatHandlerImpl {
             }
         };
 
-        let cm = ChatModel {
+        let chat_model = ChatModel {
             role: chat.role.clone(),
             content: chat.content.clone(),
             hash: chat.hash.clone(),
@@ -122,9 +122,9 @@ impl ChatHandler for ChatHandlerImpl {
 
         let mut message_repo = self.message_repo.lock().await;
         let today = chrono::Utc::now().date_naive();
-        let result = message_repo.save_chat(today, username.clone(), cm.clone());
-        let cr = ChatResponse::from_model(result);
-        Ok(cr)
+        let result = message_repo.save_chat(today, username.clone(), chat_model.clone());
+        let chat_response = ChatResponse::from_model(result);
+        Ok(chat_response)
     }
 
     async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()> {
