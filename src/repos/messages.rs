@@ -9,6 +9,7 @@ pub struct ChatModel {
     pub content: String,
     pub hash: String,
     pub embedding: Vec<f32>,
+    pub timestamp: i64,
 }
 pub struct FsMessageRepo {
     memory: std::collections::HashMap<(String, String), ChatModel>, // Update HashMap key to include user
@@ -181,6 +182,7 @@ mod tests {
             content: "Hello".to_string(),
             hash: id.clone(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let expected_hash = id.clone();
         let expected_role = chat.role.clone();
@@ -204,6 +206,7 @@ mod tests {
             content: "Hello".to_string(),
             hash: id.clone(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let mut repo = FsMessageRepo::new();
         let today = chrono::Local::now().date_naive();
@@ -223,6 +226,7 @@ mod tests {
             content: "Hello".to_string(),
             hash: id.clone(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let mut repo = FsMessageRepo::new();
         let today = chrono::Local::now().date_naive();
@@ -248,12 +252,14 @@ mod tests {
             content: "Hello".to_string(),
             hash: id.clone(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let chat2 = ChatModel {
             role: username.to_string(),
             content: "Go away, you are not welcome".to_string(),
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
         repo.save_chat(date, username.to_string(), chat.clone());
@@ -290,6 +296,7 @@ mod tests {
             content: "Hello".to_string(),
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
         repo.save_chat(date, user.clone(), chat.clone());
@@ -298,6 +305,7 @@ mod tests {
             content: "this is the second message".to_string(),
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         repo.save_chat(date, user.clone(), chat.clone());
 
@@ -310,6 +318,7 @@ mod tests {
             content: "this is the second message".to_string(),
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
+            timestamp: chrono::Utc::now().timestamp(),
         };
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
         repo.save_chat(date, user.clone(), chat.clone());

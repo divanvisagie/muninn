@@ -139,6 +139,7 @@ impl ChatHandler for ChatHandlerImpl {
             content: chat.content.clone(),
             hash: chat.hash.clone(),
             embedding: embeddings.clone(),
+            timestamp: chrono::Utc::now().timestamp(),
         };
 
         let mut message_repo = self.message_repo.lock().await;
@@ -211,6 +212,7 @@ mod tests {
                     content: "Hello".to_string(),
                     hash: "123".to_string(),
                     embedding: vec![0.0, 0.0, 0.0],
+                    timestamp: chrono::Utc::now().timestamp(),
                 }],
             }
         }
