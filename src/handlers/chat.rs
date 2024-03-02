@@ -121,7 +121,8 @@ impl ChatHandler for ChatHandlerImpl {
         };
 
         let mut message_repo = self.message_repo.lock().await;
-        let result = message_repo.save_chat(username.clone(), cm.clone());
+        let today = chrono::Utc::now().date_naive();
+        let result = message_repo.save_chat(today, username.clone(), cm.clone());
         let cr = ChatResponse::from_model(result);
         Ok(cr)
     }
