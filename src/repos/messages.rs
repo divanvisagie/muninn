@@ -22,7 +22,7 @@ pub trait MessageRepo: Send + Sync {
         user: String,
         query_vector: Vec<f32>,
     ) -> Vec<(f32, ChatModel)>;
-    fn get_all_for_user(&self, user: String) -> Vec<ChatModel>;
+    fn get_all_for_user(&self, user: String) -> Result<Vec<ChatModel>, ()>;
 }
 
 impl FsMessageRepo {
@@ -30,17 +30,6 @@ impl FsMessageRepo {
         FsMessageRepo {
             memory: std::collections::HashMap::new(),
         }
-    }
-
-    /// Get all the chats in memory for a user
-    fn get_all_in_memory_for_user(&self, user: String) -> Vec<ChatModel> {
-        let mut chats = vec![];
-        for ((_, u), chat) in &self.memory {
-            if u == &user {
-                chats.push(chat.clone());
-            }
-        }
-        chats
     }
 }
 
@@ -121,36 +110,41 @@ impl MessageRepo for FsMessageRepo {
         }
     }
 
-    fn get_all_for_user(&self, user: String) -> Vec<ChatModel> {
+    fn get_all_for_user(&self, user: String) -> Result<Vec<ChatModel>, ()> {
         let path = get_root_path(user.clone());
-        // find all the subdirectories
+        // Find all the subdirectories
         let date_folders = match std::fs::read_dir(&path) {
             Ok(val) => val,
-            Err(_) => return vec![],
+            Err(_) => return Ok(vec![]),
         };
-        let date_folders = date_folders
-            .map(|x| x.unwrap().path())
-            .collect::<Vec<PathBuf>>();
 
         let date_folders = date_folders
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .collect::<Vec<PathBuf>>();
+
+        let mut date_folders = date_folders
             .iter()
-            .map(|x| {
-                let date = x.file_name().unwrap().to_str().unwrap();
-                let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
-                date
+            .filter_map(|x| {
+                x.file_name()
+                    .and_then(|name| name.to_str())
+                    .and_then(|date_str| NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok())
             })
             .collect::<Vec<NaiveDate>>();
 
-        // get from fs for each date and add to the list of chat models
+        // Sort the dates in ascending order
+        date_folders.sort();
+
+        // Get from fs for each date and add to the list of chat models
         let mut chats: Vec<ChatModel> = vec![];
         for date in date_folders.iter() {
             let path = get_path_for_date(user.clone(), *date).join("messages.json");
+            // Assuming get_from_fs returns a Vec<ChatModel>
             let chat_models = get_from_fs(path);
             for chat in chat_models {
                 chats.push(chat);
             }
         }
-        chats
+        Ok(chats)
     }
 
     fn embeddings_search_for_user(
@@ -159,6 +153,10 @@ impl MessageRepo for FsMessageRepo {
         query_vector: Vec<f32>,
     ) -> Vec<(f32, ChatModel)> {
         let chats = self.get_all_for_user(user.clone());
+        let chats = match chats {
+            Ok(val) => val,
+            Err(_) => return vec![],
+        };
 
         let mut ranked_chats: Vec<(f32, ChatModel)> = vec![];
         for chat in chats {
@@ -257,9 +255,9 @@ mod tests {
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
         };
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
-        repo.save_chat(date, username.to_string(), chat.clone());
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
+        repo.save_chat(date, username.to_string(), chat.clone());
+        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
         repo.save_chat(date, username.to_string(), chat2.clone());
 
         let query_vector = vec![0.1, 0.2, 0.3];
@@ -272,6 +270,9 @@ mod tests {
     #[test]
     fn test_get_all_for_user() {
         let user = "test_user2".to_string();
+        // delete the folder for user
+        let path = get_root_path(user.clone());
+        let _ = std::fs::remove_dir_all(path);
 
         // lets add some old date subdirectories
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
@@ -281,6 +282,8 @@ mod tests {
         let path = get_path_for_date(user.clone(), date);
         let _ = std::fs::create_dir_all(path);
 
+        let mut repo = FsMessageRepo::new();
+
         // add messages for this date in particular
         let chat = ChatModel {
             role: "user".to_string(),
@@ -288,22 +291,33 @@ mod tests {
             hash: Uuid::new_v4().to_string(),
             embedding: vec![0.1, 0.2, 0.3],
         };
-        let mut repo = FsMessageRepo::new();
+        let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
         repo.save_chat(date, user.clone(), chat.clone());
-
-        // delete the folder for today
-        let path = get_path_for_date(user.clone(), chrono::Local::now().date_naive());
-        let _ = std::fs::remove_dir_all(path);
+        let chat = ChatModel {
+            role: "user".to_string(),
+            content: "this is the second message".to_string(),
+            hash: Uuid::new_v4().to_string(),
+            embedding: vec![0.1, 0.2, 0.3],
+        };
+        repo.save_chat(date, user.clone(), chat.clone());
 
         // set up a special user folder to only have subfolders
         // with dates in the past
         let _ = get_root_path(user.clone());
 
-        // get chats should contain the model we added even though it
-        // was for a date in the past
-        let chats = repo.get_all_in_memory_for_user(user.clone());
-        assert_eq!(chats.len(), 1);
-        assert_eq!(chats[0].content, "Hello");
-        assert_eq!(chats[0].role, "user");
+        let chat = ChatModel {
+            role: "user".to_string(),
+            content: "this is the second message".to_string(),
+            hash: Uuid::new_v4().to_string(),
+            embedding: vec![0.1, 0.2, 0.3],
+        };
+        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
+        repo.save_chat(date, user.clone(), chat.clone());
+
+        let chatsk = repo.get_all_for_user(user.clone());
+        assert_eq!(chatsk.as_ref().unwrap().len(), 3);
+        assert_eq!(chatsk.as_ref().unwrap()[0].content, "Hello");
+
+        // assert_eq!(chatsk.unwrap()[1].content, "this is the second message");
     }
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::repos::messages::ChatModel;
 use serde::{Deserialize, Serialize};
@@ -94,6 +94,27 @@ impl ChatHandler for ChatHandlerImpl {
             .lock()
             .await
             .get_all_for_user(username.clone());
+
+        //lets cut off at the last 10 messages
+        let chats = match chats {
+            Ok(chats) => {
+                let len = chats.len();
+                if len > 50 {
+                    chats[len - 10..].to_vec()
+                } else {
+                    chats
+                }
+            }
+            Err(_) => {
+                error!("Failed to get_context");
+                return Err(());
+            }
+        };
+
+        // print the text of the chats
+        for chat in chats.iter() {
+            info!("{}: {}", chat.role, chat.content);
+        }
 
         Ok(chats
             .iter()
@@ -216,8 +237,8 @@ mod tests {
             Ok(chat)
         }
 
-        fn get_all_for_user(&self, _username: String) -> Vec<ChatModel> {
-            self.chats.clone()
+        fn get_all_for_user(&self, _username: String) -> Result<Vec<ChatModel>, ()>{
+            Ok(self.chats.clone())
         }
 
         fn embeddings_search_for_user(
@@ -262,6 +283,7 @@ mod tests {
             .get_chat("test_user".to_string().borrow(), &id)
             .await
             .unwrap();
+
         assert_eq!(got_chat.role, expected_role);
         assert_eq!(got_chat.content, expected_content);
         assert_eq!(got_chat.hash, expected_hash);
@@ -284,5 +306,22 @@ mod tests {
             .unwrap();
         assert_eq!(founds.len(), 1);
         assert!(founds[0].ranking > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_get_context() {
+        let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
+        let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
+
+        let chat_handler = ChatHandlerImpl {
+            embedding_client: mock_embeddings.clone(),
+            message_repo: mock_repo.clone(),
+        };
+
+        let context = chat_handler
+            .get_context("test_user".to_string().borrow())
+            .await
+            .unwrap();
+        assert_eq!(context.len(), 1);
     }
 }
