@@ -1,15 +1,17 @@
+use actix_web::{web, HttpResponse};
 use chrono::NaiveDate;
+use tracing::error;
 use std::sync::Arc;
 use tokio::sync::Mutex; // Import the TryFutureExt trait
 
-use crate::repos::messages::MessageRepo;
+use crate::{repos::messages::MessageRepo, Resources};
 
-pub struct SummaryHandler {
+pub struct SummaryService {
     pub message_repo: Arc<Mutex<dyn MessageRepo>>,
     pub embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
 }
 
-impl SummaryHandler {
+impl SummaryService {
     pub async fn summarize_chats_for_user_for_date(
         &self,
         user: String,
@@ -43,6 +45,30 @@ impl SummaryHandler {
     }
 }
 
+pub async fn get_summary(
+    resources: web::Data<Resources>,
+    params: web::Path<(String, String)>,
+) -> HttpResponse {
+    let resources = resources.into_inner();
+
+    let summary_handler = SummaryService {
+        message_repo: resources.message_repo.clone(),
+        embedding_client: resources.embeddings_client.clone(),
+    };
+
+    let username = &params.0.clone();
+    let date = &params.1.clone();
+    let summary = summary_handler.summarize_chats_for_user_for_date(username.clone(), date.clone()).await;
+    let summary = match summary {
+        Ok(summary) => summary,
+        Err(_) => {
+            error!("Error getting summary");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(summary)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,7 +99,7 @@ mod tests {
         // save new chat
         repo.save_chat(date, user.clone(), chat);
 
-        let handler = SummaryHandler {
+        let handler = SummaryService {
             message_repo: Arc::new(Mutex::new(repo)),
             embedding_client: Arc::new(Mutex::new(MockEmbeddingsClient::new())),
         };

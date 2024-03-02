@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clients::embeddings::OpenAiEmbeddingsClient;
-use handlers::chat::{ChatHandler, SearchRequest};
+use handlers::{chat::{get_chat, get_context, save_chat, search_chat, ChatService, SearchRequest}, summary::get_summary};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
 use tracing::error;
@@ -13,15 +13,24 @@ mod clients;
 mod handlers;
 mod repos;
 
+struct Resources {
+    pub message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
+    pub embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
-    let chat_handler = ChatHandler {
-        embedding_client: Arc::new(Mutex::new(OpenAiEmbeddingsClient::new())),
-        message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
+    
+    let open_ai_embeddings_client = Arc::new(Mutex::new(OpenAiEmbeddingsClient::new()));
+    let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
+
+    let resources = Resources {
+        message_repo,
+        embeddings_client: open_ai_embeddings_client,
     };
 
-    let data = web::Data::new(chat_handler);
+    let data = web::Data::new(resources);
 
     HttpServer::new(move || {
         App::new()
@@ -36,81 +45,15 @@ async fn main() -> std::io::Result<()> {
                 "/api/v1/chat/{username}/search",
                 web::post().to(search_chat),
             )
+            .route(
+                "/api/v1/summary/{username}/{date}",
+                web::get().to(get_summary),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()
     .await
 }
 
-async fn save_chat(
-    chat_handler: web::Data<ChatHandler>,
-    params: web::Path<(String,)>,
-    payload: web::Json<ChatRequest>,
-) -> HttpResponse {
-    let username = &params.0.clone();
-    let chat_handler = chat_handler.into_inner();
-    let chat = payload.into_inner();
-    let chat = chat_handler.save_chat(username, chat).await;
 
-    //Check the result and return the appropriate response
-    match chat {
-        Ok(chat) => HttpResponse::Ok().json(chat),
-        Err(_) => {
-            error!("Error saving chat");
-            HttpResponse::InternalServerError().finish()
-        }
-    }
-}
 
-async fn get_chat(
-    chat_handler: web::Data<ChatHandler>,
-    params: web::Path<(String, String)>,
-) -> HttpResponse {
-    let chat_handler = chat_handler.into_inner();
-    let username = &params.0.clone();
-    let id = &params.1.clone();
-    let chat = chat_handler.get_chat(username, id).await;
-    let chat = match chat {
-        Ok(chat) => chat,
-        Err(_) => {
-            error!("Error getting chat");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-    HttpResponse::Ok().json(chat)
-}
-async fn get_context(
-    chat_handler: web::Data<ChatHandler>,
-    params: web::Path<(String,)>,
-) -> HttpResponse {
-    let chat_handler = chat_handler.into_inner();
-    let username = &params.0.clone();
-    let chat = chat_handler.get_context(username).await;
-    let chat = match chat {
-        Ok(chat) => chat,
-        Err(_) => {
-            error!("Error getting chat context");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-    HttpResponse::Ok().json(chat)
-}
-
-async fn search_chat(
-    chat_handler: web::Data<ChatHandler>,
-    params: web::Path<(String,)>,
-    payload: web::Json<SearchRequest>,
-) -> HttpResponse {
-    let chat_handler = chat_handler.into_inner();
-    let username = &params.0.clone();
-    let query = &payload.content.clone();
-    let chat = chat_handler.search_chat(username, query).await;
-    let chat = match chat {
-        Ok(chat) => chat,
-        Err(_) => {
-            error!("Error searching chat");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-    HttpResponse::Ok().json(chat)
-}

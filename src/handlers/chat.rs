@@ -1,6 +1,7 @@
+use actix_web::{web, HttpResponse};
 use tracing::{error, info};
 
-use crate::repos::messages::ChatModel;
+use crate::{clients::embeddings::OpenAiEmbeddingsClient, repos::messages::ChatModel, Resources};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex; // Import the TryFutureExt trait
@@ -61,12 +62,12 @@ impl ChatResponse {
 }
 
 #[derive(Clone)]
-pub struct ChatHandler {
+pub struct ChatService {
     pub(crate) embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
     pub(crate) message_repo: Arc<Mutex<dyn crate::repos::messages::MessageRepo>>,
 }
 
-impl ChatHandler {
+impl ChatService {
     pub async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()> {
         let chats = self
             .message_repo
@@ -101,7 +102,11 @@ impl ChatHandler {
             .collect())
     }
 
-    pub async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()> {
+    pub async fn save_chat(
+        &self,
+        username: &String,
+        chat: ChatRequest,
+    ) -> Result<ChatResponse, ()> {
         let embeddings_client = self.embedding_client.lock().await;
         let embeddings_result = embeddings_client.get_embeddings(chat.content.clone()).await;
 
@@ -170,6 +175,96 @@ impl ChatHandler {
     }
 }
 
+pub async fn get_chat(
+    resources: web::Data<Resources>,
+    params: web::Path<(String, String)>,
+) -> HttpResponse {
+    let resources = resources.into_inner();
+    let chat_service = ChatService {
+        embedding_client: resources.embeddings_client.clone(),
+        message_repo: resources.message_repo.clone(),
+    };
+    let username = &params.0.clone();
+    let id = &params.1.clone();
+    let chat = chat_service.get_chat(username, id).await;
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            error!("Error getting chat");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
+
+pub async fn search_chat(
+    resources: web::Data<Resources>,
+    params: web::Path<(String,)>,
+    payload: web::Json<SearchRequest>,
+) -> HttpResponse {
+    let resources = resources.into_inner();
+    let chat_service = ChatService {
+        embedding_client: resources.embeddings_client.clone(),
+        message_repo: resources.message_repo.clone(),
+    };
+    let username = &params.0.clone();
+    let query = &payload.content.clone();
+    let chat = chat_service.search_chat(username, query).await;
+
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            error!("Error searching chat");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
+
+pub async fn get_context(
+    resources: web::Data<Resources>,
+    params: web::Path<(String,)>,
+) -> HttpResponse {
+    let resources = resources.into_inner();
+    let chat_service = ChatService {
+        embedding_client: resources.embeddings_client.clone(),
+        message_repo: resources.message_repo.clone(),
+    };
+    let username = &params.0.clone();
+    let chat = chat_service.get_context(username).await;
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            error!("Error getting chat context");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
+
+pub async fn save_chat(
+    resources: web::Data<Resources>,
+    params: web::Path<(String,)>,
+    payload: web::Json<ChatRequest>,
+) -> HttpResponse {
+    let username = &params.0.clone();
+    let resources = resources.into_inner();
+    let chat_service = ChatService {
+        embedding_client: resources.embeddings_client.clone(),
+        message_repo: resources.message_repo.clone(),
+    };
+    let chat = payload.into_inner();
+    let chat = chat_service.save_chat(username, chat).await;
+
+    //Check the result and return the appropriate response
+    match chat {
+        Ok(chat) => HttpResponse::Ok().json(chat),
+        Err(_) => {
+            error!("Error saving chat");
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::borrow::Borrow;
@@ -225,7 +320,7 @@ mod tests {
             Ok(chat)
         }
 
-        fn get_all_for_user(&self, _username: String) -> Result<Vec<ChatModel>, ()>{
+        fn get_all_for_user(&self, _username: String) -> Result<Vec<ChatModel>, ()> {
             Ok(self.chats.clone())
         }
 
@@ -257,7 +352,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandler {
+        let chat_handler = ChatService {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };
@@ -282,7 +377,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandler {
+        let chat_handler = ChatService {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };
@@ -301,7 +396,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandler {
+        let chat_handler = ChatService {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };
