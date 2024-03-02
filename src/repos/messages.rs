@@ -66,9 +66,6 @@ fn get_path_for_date(user: String, date: NaiveDate) -> std::path::PathBuf {
 }
 
 fn get_from_fs(path: PathBuf) -> Vec<ChatModel> {
-    // create directory if it does not exist
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-
     let chats: Vec<ChatModel> = match std::fs::read_to_string(&path) {
         Ok(content) => serde_json::from_str(&content).unwrap(),
         Err(_) => vec![],
@@ -83,6 +80,8 @@ impl MessageRepo for FsMessageRepo {
 
         // let todays_date = chrono::Local::now().date_naive();
         let path = get_path_for_date(user.clone(), date).join("messages.json");
+        // create directory if it does not exist
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let mut chats = get_from_fs(path.clone());
 
         // append chat to file if it exists or create a new file
@@ -307,7 +306,7 @@ mod tests {
     fn test_get_all_for_user() {
         let user = "test_user2".to_string();
 
-        //lets ad some old date subdirectories
+        // lets add some old date subdirectories
         let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
         let path = get_path_for_date(user.clone(), date);
         let _ = std::fs::create_dir_all(path);
