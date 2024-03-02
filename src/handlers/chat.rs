@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use tracing::{error, info};
 
 use crate::repos::messages::ChatModel;
@@ -62,33 +61,13 @@ impl ChatResponse {
 }
 
 #[derive(Clone)]
-pub struct ChatHandlerImpl {
+pub struct ChatHandler {
     pub(crate) embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
     pub(crate) message_repo: Arc<Mutex<dyn crate::repos::messages::MessageRepo>>,
 }
 
-#[async_trait]
-pub trait ChatHandler: Send + Sync {
-    /// Saves a chat message and returns the saved chat message.
-    async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()>;
-
-    /// Gets a chat message by its id.
-    async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()>;
-
-    /// Builds a context for a user based on their chat history.
-    async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()>;
-
-    /// Searches for chat messages similar to the provided query.
-    async fn search_chat(
-        &self,
-        username: &String,
-        query: &String,
-    ) -> Result<Vec<SearchResponse>, ()>;
-}
-
-#[async_trait]
-impl ChatHandler for ChatHandlerImpl {
-    async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()> {
+impl ChatHandler {
+    pub async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()> {
         let chats = self
             .message_repo
             .lock()
@@ -122,7 +101,7 @@ impl ChatHandler for ChatHandlerImpl {
             .collect())
     }
 
-    async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()> {
+    pub async fn save_chat(&self, username: &String, chat: ChatRequest) -> Result<ChatResponse, ()> {
         let embeddings_client = self.embedding_client.lock().await;
         let embeddings_result = embeddings_client.get_embeddings(chat.content.clone()).await;
 
@@ -149,7 +128,7 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(chat_response)
     }
 
-    async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()> {
+    pub async fn get_chat(&self, username: &String, id: &String) -> Result<ChatResponse, ()> {
         let chat = match self
             .message_repo
             .lock()
@@ -167,7 +146,7 @@ impl ChatHandler for ChatHandlerImpl {
         Ok(chat_response.clone())
     }
 
-    async fn search_chat(
+    pub async fn search_chat(
         &self,
         username: &String,
         query: &String,
@@ -219,6 +198,13 @@ mod tests {
     }
 
     impl MessageRepo for MockMessageRepo {
+        fn get_all_for_user_on_day(
+            &self,
+            _username: String,
+            _date: chrono::NaiveDate,
+        ) -> Result<Vec<ChatModel>, ()> {
+            Ok(self.chats.clone())
+        }
         fn save_chat(
             &mut self,
             _date: chrono::NaiveDate,
@@ -271,7 +257,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandlerImpl {
+        let chat_handler = ChatHandler {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };
@@ -296,7 +282,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandlerImpl {
+        let chat_handler = ChatHandler {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };
@@ -315,7 +301,7 @@ mod tests {
         let mock_repo = Arc::new(Mutex::new(MockMessageRepo::new()));
         let mock_embeddings = Arc::new(Mutex::new(MockEmbeddingsClient::new()));
 
-        let chat_handler = ChatHandlerImpl {
+        let chat_handler = ChatHandler {
             embedding_client: mock_embeddings.clone(),
             message_repo: mock_repo.clone(),
         };

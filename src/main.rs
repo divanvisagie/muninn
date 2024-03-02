@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clients::embeddings::OpenAiEmbeddingsClient;
-use handlers::chat::{ChatHandler, ChatHandlerImpl, SearchRequest};
+use handlers::chat::{ChatHandler, SearchRequest};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
 use tracing::error;
@@ -16,7 +16,7 @@ mod repos;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
-    let chat_handler = ChatHandlerImpl {
+    let chat_handler = ChatHandler {
         embedding_client: Arc::new(Mutex::new(OpenAiEmbeddingsClient::new())),
         message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
     };
@@ -43,7 +43,7 @@ async fn main() -> std::io::Result<()> {
 }
 
 async fn save_chat(
-    chat_handler: web::Data<ChatHandlerImpl>,
+    chat_handler: web::Data<ChatHandler>,
     params: web::Path<(String,)>,
     payload: web::Json<ChatRequest>,
 ) -> HttpResponse {
@@ -63,7 +63,7 @@ async fn save_chat(
 }
 
 async fn get_chat(
-    chat_handler: web::Data<ChatHandlerImpl>,
+    chat_handler: web::Data<ChatHandler>,
     params: web::Path<(String, String)>,
 ) -> HttpResponse {
     let chat_handler = chat_handler.into_inner();
@@ -80,7 +80,7 @@ async fn get_chat(
     HttpResponse::Ok().json(chat)
 }
 async fn get_context(
-    chat_handler: web::Data<ChatHandlerImpl>,
+    chat_handler: web::Data<ChatHandler>,
     params: web::Path<(String,)>,
 ) -> HttpResponse {
     let chat_handler = chat_handler.into_inner();
@@ -97,7 +97,7 @@ async fn get_context(
 }
 
 async fn search_chat(
-    chat_handler: web::Data<ChatHandlerImpl>,
+    chat_handler: web::Data<ChatHandler>,
     params: web::Path<(String,)>,
     payload: web::Json<SearchRequest>,
 ) -> HttpResponse {

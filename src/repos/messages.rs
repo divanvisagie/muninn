@@ -24,6 +24,7 @@ pub trait MessageRepo: Send + Sync {
         query_vector: Vec<f32>,
     ) -> Vec<(f32, ChatModel)>;
     fn get_all_for_user(&self, user: String) -> Result<Vec<ChatModel>, ()>;
+    fn get_all_for_user_on_day(&self, user: String, date: NaiveDate) -> Result<Vec<ChatModel>, ()>;
 }
 
 impl FsMessageRepo {
@@ -51,7 +52,7 @@ fn get_root_path(user: String) -> std::path::PathBuf {
     let path = dir.join("muninn").join(user.clone());
     path
 }
-fn get_path_for_date(user: String, date: NaiveDate) -> std::path::PathBuf {
+pub fn get_path_for_date(user: String, date: NaiveDate) -> std::path::PathBuf {
     let path = get_root_path(user.clone()).join(format!("{}", date.format("%Y-%m-%d")));
     path
 }
@@ -110,7 +111,6 @@ impl MessageRepo for FsMessageRepo {
             }
         }
     }
-
     fn get_all_for_user(&self, user: String) -> Result<Vec<ChatModel>, ()> {
         let path = get_root_path(user.clone());
         // Find all the subdirectories
@@ -166,6 +166,12 @@ impl MessageRepo for FsMessageRepo {
         }
 
         ranked_chats
+    }
+
+    fn get_all_for_user_on_day(&self, user: String, date: NaiveDate) -> Result<Vec<ChatModel>, ()> {
+        let path = get_path_for_date(user.clone(), date).join("messages.json");
+        let chats = get_from_fs(path);
+        Ok(chats)
     }
 }
 
