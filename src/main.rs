@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpServer};
 use clients::embeddings::OpenAiEmbeddingsClient;
-use handlers::{chat::{get_chat, get_context, save_chat, search_chat, ChatService, SearchRequest}, summary::get_summary};
+use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
-use tracing::error;
 
-use crate::handlers::chat::ChatRequest;
 
 mod clients;
 mod handlers;

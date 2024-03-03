@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse};
 use tracing::{error, info};
 
-use crate::{clients::embeddings::OpenAiEmbeddingsClient, repos::messages::ChatModel, Resources};
+use crate::{repos::messages::ChatModel, Resources};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex; // Import the TryFutureExt trait
