@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 mod clients;
 mod handlers;
 mod repos;
+mod services;
 
 struct Resources {
     pub message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,

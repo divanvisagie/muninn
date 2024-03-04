@@ -75,7 +75,6 @@ impl MessageRepo for FsMessageRepo {
         let mut chats = get_from_fs(path.clone());
         chats.push(chat.clone());
 
-        // append chat to file if it exists or create a new file
         std::fs::create_dir_all(path.parent().unwrap()).unwrap(); // create directory if it does not exist
         let serialized = serde_json::to_string(&chats).unwrap();
 
@@ -89,14 +88,14 @@ impl MessageRepo for FsMessageRepo {
     }
 
     fn get_chat(&mut self, user: String, id: String) -> Result<ChatModel, ()> {
-        let key = (id, user.clone()); // Create key using id and user
+        let key = (id, user.clone());  
         let path = get_path_for_date(user.clone(), chrono::Local::now().date_naive())
             .join("messages.json");
+
         match self.memory.get(&key) {
             Some(chat) => Ok(chat.clone()),
             None => {
                 let chats = get_from_fs(path);
-                // put these in memory
                 for chat in chats {
                     let key = (chat.hash.clone(), user.clone());
                     self.memory.insert(key, chat.clone());

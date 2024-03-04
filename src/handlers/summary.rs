@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse};
 use chrono::NaiveDate;
 use tracing::error;
 use std::sync::Arc;
-use tokio::sync::Mutex; // Import the TryFutureExt trait
+use tokio::sync::Mutex; 
 
 use crate::{repos::messages::MessageRepo, Resources};
 
@@ -92,11 +92,10 @@ mod tests {
         };
 
         let date = chrono::NaiveDate::parse_from_str(&date_string, "%Y-%m-%d").unwrap();
-        // delete files before testing
+
         let path = get_path_for_date(user.clone(), date);
         let _ = std::fs::remove_dir_all(path);
 
-        // save new chat
         repo.save_chat(date, user.clone(), chat);
 
         let handler = SummaryService {
