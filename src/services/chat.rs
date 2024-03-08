@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::repos::messages::ChatModel;
+use crate::{clients::embeddings, repos::messages::ChatModel};
 use std::sync::Arc;
 use tokio::sync::Mutex; 
 
@@ -63,7 +63,7 @@ impl SearchResponse {
 
 #[derive(Clone)]
 pub struct ChatService {
-    pub(crate) embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
+    pub(crate) embedding_client: Arc<Mutex<dyn embeddings::EmbeddingsClient>>,
     pub(crate) message_repo: Arc<Mutex<dyn crate::repos::messages::MessageRepo>>,
 }
 

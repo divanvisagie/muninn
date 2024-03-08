@@ -2,11 +2,12 @@ use chrono::NaiveDate;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::repos::messages::MessageRepo; 
+use crate::{ repos::messages::MessageRepo}; 
 
 pub struct SummaryService {
     pub message_repo: Arc<Mutex<dyn MessageRepo>>,
     pub embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
+    pub chat_client: Arc<Mutex<dyn crate::clients::chat_gpt::ChatClient>>,
 }
 
 impl SummaryService {
@@ -27,6 +28,9 @@ impl SummaryService {
             .lock()
             .await
             .get_all_for_user_on_day(user.clone(), date);
+
+
+        // convert to message type 
 
         match messages {
             Ok(messages) => {

@@ -1,3 +1,4 @@
+
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
@@ -13,8 +14,9 @@ mod repos;
 mod services;
 
 struct Resources {
-    pub message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
-    pub embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
+    message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
+    embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
+    chat_client: Arc<Mutex<dyn clients::chat_gpt::ChatClient>>,
 }
 
 #[actix_web::main]
@@ -27,6 +29,7 @@ async fn main() -> std::io::Result<()> {
     let resources = Resources {
         message_repo,
         embeddings_client: open_ai_embeddings_client,
+        chat_client: Arc::new(Mutex::new(clients::chat_gpt::GptClient::new())),
     };
 
     let data = web::Data::new(resources);
