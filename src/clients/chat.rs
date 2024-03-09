@@ -50,11 +50,6 @@ fn parse_response(json_str: &str) -> Result<ChatResponse> {
     serde_json::from_str(json_str)
 }
 
-#[derive(Debug)]
-pub struct GptClient {
-    messages: Vec<Message>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Role {
     System,
@@ -77,18 +72,12 @@ pub trait ChatClient: Send + Sync {
     async fn complete(&mut self, context: Vec<Message>) -> String;
 }
 
-impl GptClient {
-    pub fn new() -> Self {
-        GptClient {
-            messages: Vec::new(),
-        }
-    }
-}
-
+#[allow(dead_code)]
 pub struct ContextBuilder {
     messages: Vec<Message>,
 }
 
+#[allow(dead_code)]
 impl ContextBuilder {
     pub fn new() -> Self {
         ContextBuilder {
@@ -107,7 +96,62 @@ impl ContextBuilder {
         self.messages.clone()
     }
 }
+/// Ollama client implementation
+pub struct OllamaClient;
+#[allow(dead_code)]
+impl OllamaClient {
+    pub fn new() -> Self {
+        OllamaClient {}
+    }
+}
 
+#[derive(Deserialize)]
+struct OllamaResponse {
+    pub message: Message,
+}
+#[allow(dead_code)]
+#[async_trait::async_trait]
+impl ChatClient for OllamaClient {
+    async fn complete(&mut self, context: Vec<Message>) -> String {
+        let client = reqwest::Client::new();
+        let url = "http://localhost:11434/api/chat";
+
+        let chat_request = ChatRequest {
+            model: "gemma:2b".to_string(),
+            messages: context.clone(),
+        };
+
+        let request_body = serde_json::to_string(&chat_request).unwrap();
+
+        let response = client
+            .post(url)
+            .body(request_body)
+            .send()
+            .await;
+
+        let response = match response {
+            Ok(response) => response.text().await,
+            Err(e) => {
+                error!("Error: {}", e);
+                return "Error".to_string();
+            }
+        };
+
+        let response_text = response.unwrap();
+
+        let response_object: OllamaResponse = serde_json::from_str(&response_text).unwrap();
+
+        response_object.message.content
+    }
+}
+/// OpenAI client implementation
+pub struct GptClient;
+impl GptClient {
+    pub fn new() -> Self {
+        GptClient {}
+    }
+}
+#[allow(dead_code)]
 #[async_trait::async_trait]
 impl ChatClient for GptClient {
     //complete method
@@ -131,7 +175,7 @@ impl ChatClient for GptClient {
 
         let chat_request = ChatRequest {
             model: "gpt-4-turbo-preview".to_string(),
-            messages: self.messages.clone(),
+            messages: context.clone(),
         };
 
         let request_body = serde_json::to_string(&chat_request).unwrap();

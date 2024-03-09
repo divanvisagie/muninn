@@ -21,3 +21,5 @@ install:
 	rm /etc/systemd/system/muninn.service || true
 	cp scripts/muninn.service /etc/systemd/system/
 
+dev:
+	cargo watch -x run

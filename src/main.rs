@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
-use clients::embeddings::OpenAiEmbeddingsClient;
+use clients::embeddings::BarnstokkrClient;
 use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
@@ -16,20 +16,20 @@ mod services;
 struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
     embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
-    chat_client: Arc<Mutex<dyn clients::chat_gpt::ChatClient>>,
+    chat_client: Arc<Mutex<dyn clients::chat::ChatClient>>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
     
-    let open_ai_embeddings_client = Arc::new(Mutex::new(OpenAiEmbeddingsClient::new()));
+    let open_ai_embeddings_client = Arc::new(Mutex::new(BarnstokkrClient::new()));
     let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
 
     let resources = Resources {
         message_repo,
         embeddings_client: open_ai_embeddings_client,
-        chat_client: Arc::new(Mutex::new(clients::chat_gpt::GptClient::new())),
+        chat_client: Arc::new(Mutex::new(clients::chat::GptClient::new())),
     };
 
     let data = web::Data::new(resources);
