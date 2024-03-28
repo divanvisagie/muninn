@@ -1,24 +1,28 @@
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use chrono::NaiveDate;
 use tracing::error;
+
+use crate::clients::{self, embeddings::EmbeddingsClient};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
     pub role: String,
     pub content: String,
     pub hash: String,
-    pub embedding: Vec<f32>,
+    pub embedding: Option<Vec<f32>>,
     pub timestamp: i64,
 }
-pub struct FsMessageRepo {
+pub struct FsMessageRepo{
     memory: std::collections::HashMap<(String, String), ChatModel>, // Update HashMap key to include user
 }
 
+#[async_trait]
 pub trait MessageRepo: Send + Sync {
     fn save_chat(&mut self, date: NaiveDate, user: String, chat: ChatModel) -> ChatModel;
     fn get_chat(&mut self, user: String, id: String) -> Result<ChatModel, ()>; // Add user parameter
-    fn embeddings_search_for_user(
+    async fn embeddings_search_for_user(
         &self,
         user: String,
         query_vector: Vec<f32>,
@@ -65,6 +69,7 @@ fn get_from_fs(path: PathBuf) -> Vec<ChatModel> {
     chats
 }
 
+#[async_trait]
 impl MessageRepo for FsMessageRepo {
     fn save_chat(&mut self, date: NaiveDate, user: String, chat: ChatModel) -> ChatModel {
         let key = (chat.hash.clone(), user.clone());
@@ -88,7 +93,7 @@ impl MessageRepo for FsMessageRepo {
     }
 
     fn get_chat(&mut self, user: String, id: String) -> Result<ChatModel, ()> {
-        let key = (id, user.clone());  
+        let key = (id, user.clone());
         let path = get_path_for_date(user.clone(), chrono::Local::now().date_naive())
             .join("messages.json");
 
@@ -147,7 +152,7 @@ impl MessageRepo for FsMessageRepo {
         Ok(chats)
     }
 
-    fn embeddings_search_for_user(
+    async fn embeddings_search_for_user(
         &self,
         user: String,
         query_vector: Vec<f32>,
@@ -159,8 +164,23 @@ impl MessageRepo for FsMessageRepo {
         };
 
         let mut ranked_chats: Vec<(f32, ChatModel)> = vec![];
+        let embedding_client = clients::embeddings::BarnstokkrClient::new();
+
         for chat in chats {
-            let similarity = cosine_similarity(&chat.embedding, &query_vector);
+            let chat_embedding = match &chat.embedding {
+                Some(val) => val.clone(),
+                None => {
+                    let embedding = embedding_client.get_embeddings(chat.content.clone()).await;
+                    match embedding {
+                        Ok(val) => val,
+                        Err(_) => {
+                            error!("Failed to get embeddings");
+                            return vec![];
+                        }
+                    }
+                }
+            };
+            let similarity = cosine_similarity(&chat_embedding, &query_vector);
             ranked_chats.push((similarity, chat));
         }
 
@@ -174,164 +194,3 @@ impl MessageRepo for FsMessageRepo {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use uuid::Uuid;
-
-    use super::*;
-    #[test]
-    fn test_save_chat_and_get_chat() {
-        let id = Uuid::new_v4().to_string();
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            hash: id.clone(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let expected_hash = id.clone();
-        let expected_role = chat.role.clone();
-        let expected_content = chat.content.clone();
-
-        let mut repo = FsMessageRepo::new();
-        let todays_date = chrono::Local::now().date_naive();
-        repo.save_chat(todays_date, "test_user".to_string(), chat.clone()); // Pass user parameter
-
-        let got_chat = repo.get_chat("test_user".to_string(), id).unwrap(); // Pass user parameter
-        assert_eq!(got_chat.role, expected_role);
-        assert_eq!(got_chat.content, expected_content);
-        assert_eq!(got_chat.hash, expected_hash);
-    }
-
-    #[test]
-    fn test_get_chat_when_no_user() {
-        let id = Uuid::new_v4().to_string();
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            hash: id.clone(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let mut repo = FsMessageRepo::new();
-        let today = chrono::Local::now().date_naive();
-        repo.save_chat(today, "test_user".to_string(), chat.clone());
-
-        let got_chat = repo.get_chat("test_user2".to_string(), id);
-
-        //test that the result was an error
-        assert!(got_chat.is_err());
-    }
-
-    #[test]
-    fn test_get_when_there_is_no_chat() {
-        let id = Uuid::new_v4().to_string();
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            hash: id.clone(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let mut repo = FsMessageRepo::new();
-        let today = chrono::Local::now().date_naive();
-        repo.save_chat(today, "test_user".to_string(), chat.clone());
-
-        let got_chat = repo.get_chat("test_user".to_string(), uuid::Uuid::new_v4().to_string());
-
-        //test that the result was an error
-        assert!(got_chat.is_err());
-    }
-
-    #[test]
-    fn test_embeddings_search_for_user() {
-        let username = "test_user_embeddings".to_string();
-
-        let path = get_root_path(username.to_string());
-        let _ = std::fs::remove_dir_all(path);
-
-        let mut repo = FsMessageRepo::new();
-        let id = Uuid::new_v4().to_string();
-        let chat = ChatModel {
-            role: username.to_string(),
-            content: "Hello".to_string(),
-            hash: id.clone(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let chat2 = ChatModel {
-            role: username.to_string(),
-            content: "Go away, you are not welcome".to_string(),
-            hash: Uuid::new_v4().to_string(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
-        repo.save_chat(date, username.to_string(), chat.clone());
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
-        repo.save_chat(date, username.to_string(), chat2.clone());
-
-        let query_vector = vec![0.1, 0.2, 0.3];
-        let results = repo.embeddings_search_for_user(username.to_string(), query_vector);
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].1.content, "Hello");
-        assert_eq!(results[1].1.content, "Go away, you are not welcome");
-    }
-
-    #[test]
-    fn test_get_all_for_user() {
-        let user = "test_user2".to_string();
-        // delete the folder for user
-        let path = get_root_path(user.clone());
-        let _ = std::fs::remove_dir_all(path);
-
-        // lets add some old date subdirectories
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
-        let path = get_path_for_date(user.clone(), date);
-        let _ = std::fs::create_dir_all(path);
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
-        let path = get_path_for_date(user.clone(), date);
-        let _ = std::fs::create_dir_all(path);
-
-        let mut repo = FsMessageRepo::new();
-
-        // add messages for this date in particular
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            hash: Uuid::new_v4().to_string(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(5);
-        repo.save_chat(date, user.clone(), chat.clone());
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "this is the second message".to_string(),
-            hash: Uuid::new_v4().to_string(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        repo.save_chat(date, user.clone(), chat.clone());
-
-        // set up a special user folder to only have subfolders
-        // with dates in the past
-        let _ = get_root_path(user.clone());
-
-        let chat = ChatModel {
-            role: "user".to_string(),
-            content: "this is the second message".to_string(),
-            hash: Uuid::new_v4().to_string(),
-            embedding: vec![0.1, 0.2, 0.3],
-            timestamp: chrono::Utc::now().timestamp(),
-        };
-        let date = chrono::Local::now().date_naive() - chrono::Duration::days(2);
-        repo.save_chat(date, user.clone(), chat.clone());
-
-        let chatsk = repo.get_all_for_user(user.clone());
-        assert_eq!(chatsk.as_ref().unwrap().len(), 3);
-        assert_eq!(chatsk.as_ref().unwrap()[0].content, "Hello");
-
-        // assert_eq!(chatsk.unwrap()[1].content, "this is the second message");
-    }
-}

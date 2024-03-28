@@ -30,7 +30,7 @@ pub trait EmbeddingsClient: Send + Sync {
     async fn get_embeddings(
         &self,
         text: String,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>>;
+    ) -> Result<Vec<f32>,()>;
 }
 
 impl OpenAiEmbeddingsClient {
@@ -45,7 +45,7 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
     async fn get_embeddings(
         &self,
         text: String,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<f32>,()> {
         let api_key =
             env::var("OPENAI_API_KEY").expect("Missing OPENAI_API_KEY environment variable");
 
@@ -79,7 +79,7 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
             Ok(response) => response.text().await.unwrap(),
             Err(e) => {
                 error!("Error in response: {}", e);
-                return Err(Box::new(e));
+                return Err(())
             }
         };
 
@@ -87,7 +87,7 @@ impl EmbeddingsClient for OpenAiEmbeddingsClient {
             Ok(object) => object,
             Err(e) => {
                 error!("Error in respone object: {}", e);
-                return Err(Box::new(e));
+                return Err(())
             }
         };
 
@@ -136,7 +136,7 @@ impl EmbeddingsClient for OllamaEmbeddingsClient<'_> {
     async fn get_embeddings(
         &self,
         text: String,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<f32>,()> {
         info!("Ollama embeddings for: {}", text);
         let url = format!("{}/api/embeddings", self.base_url,);
         let client = reqwest::Client::new();
@@ -152,14 +152,14 @@ impl EmbeddingsClient for OllamaEmbeddingsClient<'_> {
             Ok(response) => response.text().await.unwrap(),
             Err(e) => {
                 error!("Error in response: {}", e);
-                return Err(Box::new(e));
+                return Err(());
             }
         };
         let response_object: OllamaResponse = match serde_json::from_str(&ollama_response) {
             Ok(object) => object,
             Err(e) => {
                 error!("Error in respone object: {}", e);
-                return Err(Box::new(e));
+                return Err(());
             }
         };
 
@@ -197,7 +197,7 @@ impl<'a> EmbeddingsClient for BarnstokkrClient<'a> {
     async fn get_embeddings(
         &self,
         text: String,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<f32>,()> {
         info!("Barnstokkr embeddings for: {}", text);
         let url = format!("{}/embeddings", self.base_url,);
         let client = reqwest::Client::new();
@@ -212,14 +212,14 @@ impl<'a> EmbeddingsClient for BarnstokkrClient<'a> {
             Ok(response) => response.text().await.unwrap(),
             Err(e) => {
                 error!("Error in response: {}", e);
-                return Err(Box::new(e));
+                return Err(());
             }
         };
         let response_object: BarnstokkrResponse = match serde_json::from_str(&barnstokkr_response) {
             Ok(object) => object,
             Err(e) => {
                 error!("Error in respone object: {}", e);
-                return Err(Box::new(e));
+                return Err(());
             }
         };
 
@@ -243,7 +243,7 @@ impl EmbeddingsClient for MockEmbeddingsClient {
     async fn get_embeddings(
         &self,
         text: String,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<f32>,()> {
         info!("Mocking embeddings for: {}", text);
         Ok(vec![0.0, 0.0, 0.0])
     }

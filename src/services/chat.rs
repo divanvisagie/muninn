@@ -122,7 +122,7 @@ impl ChatService {
             role: chat.role.clone(),
             content: chat.content.clone(),
             hash: chat.hash.clone(),
-            embedding: embeddings.clone(),
+            embedding: None,
             timestamp: chrono::Utc::now().timestamp(),
         };
 
@@ -161,14 +161,20 @@ impl ChatService {
         let embeddings_client = self.embedding_client.lock().await;
         let query_vector = embeddings_client
             .get_embeddings(query.clone())
-            .await
-            .unwrap();
+            .await;
+        let query_vector = match query_vector {
+            Ok(query_vector) => query_vector,
+            Err(_) => {
+                error!("Failed to get embeddings");
+                return Err(());
+            }
+        };
 
-        let founds = repo.embeddings_search_for_user(username.clone(), query_vector);
+        let founds = repo.embeddings_search_for_user(username.clone(), query_vector).await;
         let founds = founds
             .iter()
             .map(|(similarity, chat)| {
-                SearchResponse::from_chat_model(chat.clone(), similarity.clone())
+                SearchResponse::from_chat_model(chat.clone(), *similarity)
             })
             .collect();
         Ok(founds)
@@ -182,6 +188,7 @@ mod tests {
     use crate::{clients::embeddings::MockEmbeddingsClient, repos::messages::MessageRepo};
 
     use super::*;
+    use async_trait::async_trait;
     use uuid::Uuid;
 
     struct MockMessageRepo {
@@ -195,13 +202,14 @@ mod tests {
                     role: "user".to_string(),
                     content: "Hello".to_string(),
                     hash: "123".to_string(),
-                    embedding: vec![0.0, 0.0, 0.0],
+                    embedding: None,
                     timestamp: chrono::Utc::now().timestamp(),
                 }],
             }
         }
     }
 
+    #[async_trait]
     impl MessageRepo for MockMessageRepo {
         fn get_all_for_user_on_day(
             &self,
@@ -234,7 +242,7 @@ mod tests {
             Ok(self.chats.clone())
         }
 
-        fn embeddings_search_for_user(
+        async fn embeddings_search_for_user(
             &self,
             _username: String,
             _query_vector: Vec<f32>,

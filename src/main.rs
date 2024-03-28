@@ -2,11 +2,10 @@
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
-use clients::embeddings::{BarnstokkrClient, OllamaEmbeddingsClient};
+use clients::embeddings::BarnstokkrClient;
 use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary};
 use repos::messages::FsMessageRepo;
 use tokio::sync::Mutex;
-
 
 mod clients;
 mod handlers;
@@ -23,7 +22,7 @@ struct Resources {
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
     
-    let open_ai_embeddings_client = Arc::new(Mutex::new(OllamaEmbeddingsClient::new()));
+    let open_ai_embeddings_client = Arc::new(Mutex::new(BarnstokkrClient::new()));
     let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
 
     let resources = Resources {

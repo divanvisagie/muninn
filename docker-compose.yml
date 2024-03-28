@@ -9,3 +9,9 @@ services:
     restart: always
     volumes:
       - ./data/messages/:/root/.local/share/muninn:rw
+  #docker run -p 8001:8000 chromadb/chroma
+  chroma:
+    image: chromadb/chroma
+    ports:
+      - "8001:8000"
+    restart: always
