@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use tracing::info;
 
 
 #[derive(Deserialize)]
@@ -32,6 +33,8 @@ impl UserAttributeService {
         }
         let user_attributes = self.memory.get_mut(username).unwrap();
         user_attributes.insert(attribute.clone(), value.clone());
+
+        info!("Saved attribute {} for user {} as {}", attribute, username, value);
 
         Ok(())
     }

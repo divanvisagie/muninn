@@ -91,11 +91,6 @@ impl ChatService {
             }
         };
 
-        // print the text of the chats
-        for chat in chats.iter() {
-            info!("{}: {}", chat.role, chat.content);
-        }
-
         Ok(chats
             .iter()
             .map(|chat| ChatResponse::from_model(chat.clone()))
