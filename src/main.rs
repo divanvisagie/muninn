@@ -5,6 +5,7 @@ use actix_web::{web, App, HttpServer};
 use clients::embeddings::BarnstokkrClient;
 use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary};
 use repos::messages::FsMessageRepo;
+use services::user_attributes::{self, UserAttributeService};
 use tokio::sync::Mutex;
 
 mod clients;
@@ -16,6 +17,18 @@ struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
     embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
     chat_client: Arc<Mutex<dyn clients::chat::ChatClient>>,
+    user_attributes_service: Arc<Mutex<UserAttributeService>>,
+}
+
+impl Resources {
+    fn new() -> Self {
+        Resources {
+            message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
+            embeddings_client: Arc::new(Mutex::new(BarnstokkrClient::new())),
+            chat_client: Arc::new(Mutex::new(clients::chat::GptClient::new())),
+            user_attributes_service: Arc::new(Mutex::new(UserAttributeService::new())),
+        }
+    }
 }
 
 #[actix_web::main]
@@ -29,6 +42,7 @@ async fn main() -> std::io::Result<()> {
         message_repo,
         embeddings_client: open_ai_embeddings_client,
         chat_client: Arc::new(Mutex::new(clients::chat::GptClient::new())),
+        user_attributes_service: Arc::new(Mutex::new(UserAttributeService::new())),
     };
 
     let data = web::Data::new(resources);
