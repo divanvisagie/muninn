@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use clients::embeddings::BarnstokkrClient;
-use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary};
+use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary, user_attributes::{get_attribute, save_attribute}};
 use repos::messages::FsMessageRepo;
 use services::user_attributes::{self, UserAttributeService};
 use tokio::sync::Mutex;
@@ -63,6 +63,14 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/api/v1/summary/{username}/{date}",
                 web::get().to(get_summary),
+            )
+            .route(
+                "/api/v1/attribute/{username}",
+                web::post().to(save_attribute),
+            )
+            .route(
+                "/api/v1/attribute/{username}/{attribute}",
+                web::get().to(get_attribute),
             )
     })
     .bind("0.0.0.0:8080")?

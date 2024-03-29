@@ -69,16 +69,16 @@ mod tests {
     async fn test_save_attribute() {
         let resources = Resources::new();
         let mut app = test::init_service(App::new().app_data(web::Data::new(resources)).route(
-            "/api/v1/user/{username}/attribute",
+            "/api/v1/attribute/{username}",
             web::post().to(save_attribute),
         ).route(
-            "/api/v1/user/{username}/{attribute}",
+            "/api/v1/attribute/{username}/{attribute}",
             web::get().to(get_attribute),
         ))
         .await;
 
         let req = test::TestRequest::post()
-            .uri("/api/v1/user/username/attribute")
+            .uri("/api/v1/attribute/username")
             .set_json(&json!({"attribute": "test_attr", "value": "test"}))
             .to_request();
 
@@ -87,7 +87,7 @@ mod tests {
 
         // check if attribute is present in memory
         let resp = test::TestRequest::get()
-            .uri("/api/v1/user/username/test_attr")
+            .uri("/api/v1/attribute/username/test_attr")
             .to_request();
         let resp = test::call_service(&mut app, resp).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -104,7 +104,7 @@ mod tests {
         .await;
 
         let req = test::TestRequest::get()
-            .uri("/api/v1/user/username/test_key")
+            .uri("/api/v1/attribute/username/test_key")
             .to_request();
 
         let resp = test::call_service(&mut app, req).await;
