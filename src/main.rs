@@ -72,6 +72,10 @@ async fn main() -> std::io::Result<()> {
                 "/api/v1/attribute/{username}/{attribute}",
                 web::get().to(get_attribute),
             )
+            .route(
+                "/api/v1/events/{username}",
+                web::get().to(handlers::events::test_mtqq),
+            )
     })
     .bind("0.0.0.0:8080")?
     .run()
