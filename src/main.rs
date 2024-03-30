@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use clients::embeddings::BarnstokkrClient;
-use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, summary::get_summary, user_attributes::{get_attribute, save_attribute}};
+use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, events::test_mtqq, summary::get_summary, user_attributes::{get_attribute, save_attribute}};
 use repos::messages::FsMessageRepo;
-use services::user_attributes::{self, UserAttributeService};
+use services::user_attributes::UserAttributeService;
 use tokio::sync::Mutex;
 
 mod clients;
@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
             )
             .route(
                 "/api/v1/events/{username}",
-                web::get().to(handlers::events::test_mtqq),
+                web::get().to(test_mtqq),
             )
     })
     .bind("0.0.0.0:8080")?

@@ -22,6 +22,8 @@ pub async fn test_mtqq(params: web::Path<(String,)>) -> HttpResponse {
     })
     .unwrap();
 
+    info!("Sending message to mqtt");
+
     let mut mqttoptions = MqttOptions::new("muninn", "127.0.0.1", 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
