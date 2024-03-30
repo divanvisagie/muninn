@@ -4,9 +4,10 @@ use actix_web::{web, HttpResponse};
 use rumqttc::MqttOptions;
 use serde::Serialize;
 use tracing::{error, info};
-use crate::repos::attributes::{FsAttributeRepo, AttributeRepo};
+use crate::repos::attributes::AttributeRepo;
+use sha2::{Digest, Sha256};
 
-
+use crate::repos::messages::ChatModel;
 use crate::Resources;
 
 #[derive(Serialize)]
@@ -28,6 +29,21 @@ pub async fn test_mtqq(
         .await
         .get_attribute(&username, &attr)
         .await;
+
+    //create hash of message
+    let content = "test".to_string();
+    let hash = Sha256::digest(content.as_bytes());
+    let timestamp = chrono::Utc::now().timestamp();
+    let chat = ChatModel {
+        role: "assistant".to_string(),
+        content,
+        hash: format!("{:x}", hash),
+        embedding: None,
+        timestamp,
+    };
+    let date = chrono::Utc::now().date_naive();
+    resources.message_repo.lock().await.save_chat(date, username.clone(), chat);
+
     let chat_id = match chat_id {
         Ok(chat_id) => chat_id.value,
         Err(_) => {
@@ -41,7 +57,7 @@ pub async fn test_mtqq(
 
     let chat = rmp_serde::to_vec(&MessageEvent {
         username: username.clone(),
-        hash: "hash".to_string(),
+        hash: format!("{:x}", hash),
         chat_id,
     })
     .unwrap();
@@ -50,6 +66,8 @@ pub async fn test_mtqq(
 
     let mut mqttoptions = MqttOptions::new("muninn", "127.0.0.1", 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
+
+    
 
     let (client, mut eventloop) = rumqttc::AsyncClient::new(mqttoptions, 10);
     match client
