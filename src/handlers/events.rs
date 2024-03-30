@@ -31,7 +31,7 @@ pub async fn test_mtqq(
         .await;
 
     //create hash of message
-    let content = "test".to_string();
+    let content = "Event test message".to_string();
     let hash = Sha256::digest(content.as_bytes());
     let timestamp = chrono::Utc::now().timestamp();
     let chat = ChatModel {
