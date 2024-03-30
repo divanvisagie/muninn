@@ -2,9 +2,9 @@
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
-use clients::embeddings::BarnstokkrClient;
+use clients::{chat::{self, ChatClient, GptClient}, embeddings::BarnstokkrClient};
 use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, events::test_mtqq, summary::get_summary, user_attributes::{get_attribute, save_attribute}};
-use repos::messages::FsMessageRepo;
+use repos::{attributes::FsAttributeRepo, messages::FsMessageRepo};
 use services::user_attributes::UserAttributeService;
 use tokio::sync::Mutex;
 
@@ -16,8 +16,8 @@ mod services;
 struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
     embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
-    chat_client: Arc<Mutex<dyn clients::chat::ChatClient>>,
-    user_attributes_service: Arc<Mutex<UserAttributeService>>,
+    chat_client: Arc<Mutex<dyn ChatClient>>,
+    user_attributes_repo: Arc<Mutex<FsAttributeRepo>>,
 }
 
 impl Resources {
@@ -25,8 +25,8 @@ impl Resources {
         Resources {
             message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
             embeddings_client: Arc::new(Mutex::new(BarnstokkrClient::new())),
-            chat_client: Arc::new(Mutex::new(clients::chat::GptClient::new())),
-            user_attributes_service: Arc::new(Mutex::new(UserAttributeService::new())),
+            chat_client: Arc::new(Mutex::new(GptClient::new())),
+            user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
         }
     }
 }
@@ -41,8 +41,8 @@ async fn main() -> std::io::Result<()> {
     let resources = Resources {
         message_repo,
         embeddings_client: open_ai_embeddings_client,
-        chat_client: Arc::new(Mutex::new(clients::chat::GptClient::new())),
-        user_attributes_service: Arc::new(Mutex::new(UserAttributeService::new())),
+        chat_client: Arc::new(Mutex::new(GptClient::new())),
+        user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
     };
 
     let data = web::Data::new(resources);

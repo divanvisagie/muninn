@@ -1,8 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use serde::Deserialize;
+use tokio::sync::Mutex;
 use tracing::info;
 
+use crate::repos::attributes::AttributeRepo;
 
 #[derive(Deserialize)]
 pub struct AttributeRequest {
@@ -11,48 +13,40 @@ pub struct AttributeRequest {
 }
 
 pub struct UserAttributeService {
-    memory: HashMap<String, HashMap<String, String>>,
+    pub attribute_repo: Arc<Mutex<dyn AttributeRepo>>,
 }
 
 impl UserAttributeService {
-    pub fn new() -> Self {
-        UserAttributeService {
-            memory: HashMap::new(),
-        }
-    }
-
     pub async fn save_attribute(
         &mut self,
         username: &String,
         attribute: &String,
         value: &String,
     ) -> Result<(), ()> {
-        let user_attributes = self.memory.get_mut(username);
-        if user_attributes.is_none() {
-            self.memory.insert(username.clone(), HashMap::new());
-        }
-        let user_attributes = self.memory.get_mut(username).unwrap();
-        user_attributes.insert(attribute.clone(), value.clone());
+        self.attribute_repo
+            .lock()
+            .await
+            .save_attribute(username, attribute, value)
+            .await
+            .map_err(|_| ())?;
 
-        info!("Saved attribute {} for user {} as {}", attribute, username, value);
+        info!(
+            "Saved attribute {} for user {} as {}",
+            attribute, username, value
+        );
 
         Ok(())
     }
 
-    pub async fn get_attribute(
-        &self,
-        username: &String,
-        attribute: &String,
-    ) -> Result<String, ()> {
-        let user_attributes = self.memory.get(username);
-        if user_attributes.is_none() {
-            return Err(());
-        }
-        let user_attributes = user_attributes.unwrap();
-        let value = user_attributes.get(attribute);
-        if value.is_none() {
-            return Err(());
-        }
-        Ok(value.unwrap().clone())
+    pub async fn get_attribute(&self, username: &String, attribute: &String) -> Result<String, ()> {
+        let attribute = self
+            .attribute_repo
+            .lock()
+            .await
+            .get_attribute(username, attribute)
+            .await
+            .map_err(|_| ())?;
+
+        Ok(attribute.value)
     }
 }

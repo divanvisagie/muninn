@@ -4,6 +4,10 @@ use actix_web::{web, HttpResponse};
 use rumqttc::MqttOptions;
 use serde::Serialize;
 use tracing::{error, info};
+use crate::repos::attributes::{FsAttributeRepo, AttributeRepo};
+
+
+use crate::Resources;
 
 #[derive(Serialize)]
 pub struct MessageEvent {
@@ -12,13 +16,33 @@ pub struct MessageEvent {
     pub chat_id: i64,
 }
 
-pub async fn test_mtqq(params: web::Path<(String,)>) -> HttpResponse {
+pub async fn test_mtqq(
+    resources: web::Data<Resources>,
+    params: web::Path<(String,)>,
+) -> HttpResponse {
     let username = &params.0.clone();
+    let attr = "telegram_chat_id".to_string();
+    let chat_id = resources
+        .user_attributes_repo
+        .lock()
+        .await
+        .get_attribute(&username, &attr)
+        .await;
+    let chat_id = match chat_id {
+        Ok(chat_id) => chat_id.value,
+        Err(_) => {
+            error!("Error getting chat id");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    // convert chatid from string to i64
+    let chat_id = chat_id.parse::<i64>().unwrap();
 
     let chat = rmp_serde::to_vec(&MessageEvent {
         username: username.clone(),
         hash: "hash".to_string(),
-        chat_id: 1,
+        chat_id,
     })
     .unwrap();
 

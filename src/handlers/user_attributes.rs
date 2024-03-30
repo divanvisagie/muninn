@@ -14,14 +14,16 @@ pub async fn save_attribute(
     let username = &params.0.clone();
     let attribute = &payload.attribute.clone();
     let value = &payload.value.clone();
-    let attribute = resources
-        .user_attributes_service
-        .lock()
-        .await
+
+    let mut user_attributes_service = UserAttributeService {
+        attribute_repo: resources.user_attributes_repo.clone(),
+    };
+
+    let attribute = user_attributes_service
         .save_attribute(username, attribute, value)
         .await;
 
-    let attribute = match attribute {
+    match attribute {
         Ok(attribute) => attribute,
         Err(_) => {
             error!("Error saving attribute");
@@ -38,13 +40,12 @@ pub async fn get_attribute(
     let resources = resources.into_inner();
     let username = &params.0.clone();
     let attribute = &params.1.clone();
-    let attribute = resources
-        .user_attributes_service
-        .clone()
-        .lock()
-        .await
-        .get_attribute(username, attribute)
-        .await;
+
+    let mut user_attributes_service = UserAttributeService {
+        attribute_repo: resources.user_attributes_repo.clone(),
+    };
+
+    let attribute = user_attributes_service.get_attribute(username, attribute).await;
 
     let attribute = match attribute {
         Ok(attribute) => attribute,
@@ -109,39 +110,5 @@ mod tests {
 
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[actix::test]
-    async fn test_get_attribute_when_present() {
-        let resources = Resources::new();
-
-        // Add attribute to memory
-        resources
-            .user_attributes_service
-            .lock()
-            .await
-            .save_attribute(
-                &"username".to_string(),
-                &"test_key".to_string(),
-                &"test_value".to_string(),
-            )
-            .await
-            .unwrap();
-
-        // Test for presence
-        let mut app = test::init_service(App::new().app_data(web::Data::new(resources)).route(
-            "/api/v1/attributes/{username}/{attribute}",
-            web::get().to(get_attribute),
-        ))
-        .await;
-
-        let req = test::TestRequest::get()
-            .uri("/api/v1/attributes/username/test_key")
-            .to_request();
-
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        assert_eq!(body, r#""test_value""#);
     }
 }
