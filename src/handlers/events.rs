@@ -67,8 +67,6 @@ pub async fn test_mtqq(
     let mut mqttoptions = MqttOptions::new("muninn", "127.0.0.1", 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
-    
-
     let (client, mut eventloop) = rumqttc::AsyncClient::new(mqttoptions, 10);
     match client
         .publish(
