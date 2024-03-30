@@ -27,7 +27,7 @@ impl UserAttributeService {
         attribute: &String,
         value: &String,
     ) -> Result<(), ()> {
-        let mut user_attributes = self.memory.get_mut(username);
+        let user_attributes = self.memory.get_mut(username);
         if user_attributes.is_none() {
             self.memory.insert(username.clone(), HashMap::new());
         }
