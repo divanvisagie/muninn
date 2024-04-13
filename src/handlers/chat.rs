@@ -1,8 +1,10 @@
 use actix_web::{web, HttpResponse};
 use tracing::error;
 
-use crate::{services::chat::{ChatRequest, ChatService, SearchRequest}, Resources};
-
+use crate::{
+    services::chat::{ChatRequest, ChatService, SearchRequest},
+    Resources,
+};
 
 pub async fn get_chat(
     resources: web::Data<Resources>,
@@ -71,6 +73,31 @@ pub async fn get_context(
     HttpResponse::Ok().json(chat)
 }
 
+pub async fn get_context_with(
+    resources: web::Data<Resources>,
+    params: web::Path<(String,)>,
+    payload: web::Json<ChatRequest>,
+) -> HttpResponse {
+    let resources = resources.into_inner();
+    let chat_service = ChatService {
+        embedding_client: resources.embeddings_client.clone(),
+        message_repo: resources.message_repo.clone(),
+    };
+    let username = &params.0.clone();
+    let chat_request = payload.into_inner();
+    //    let chat = chat_service.get_context_with(username, chat).await;
+    let chat = chat_service.get_context(username).await;
+
+    let chat = match chat {
+        Ok(chat) => chat,
+        Err(_) => {
+            error!("Error getting chat context");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(chat)
+}
+
 pub async fn save_chat(
     resources: web::Data<Resources>,
     params: web::Path<(String,)>,
@@ -93,4 +120,3 @@ pub async fn save_chat(
         }
     }
 }
-

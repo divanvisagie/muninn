@@ -6,7 +6,7 @@ use clients::{
     embeddings::BarnstokkrClient,
 };
 use handlers::{
-    chat::{get_chat, get_context, save_chat, search_chat},
+    chat::{get_chat, get_context, get_context_with, save_chat, search_chat},
     events::test_mtqq,
     summary::get_summary,
     user_attributes::{get_attribute, save_attribute},
@@ -49,6 +49,7 @@ async fn start_web_server(resources: Resources) -> Result<()>{
                 "/api/v1/chat/{username}/context",
                 web::get().to(get_context),
             )
+            .route("/api/v1/chat/{username}/context", web::post().to(get_context_with))
             .route("/api/v1/chat/{username}/{id}", web::get().to(get_chat))
             .route(
                 "/api/v1/chat/{username}/search",
