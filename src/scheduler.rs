@@ -6,14 +6,15 @@ use tracing::info;
 use crate::handlers::events::MessageEvent;
 
 pub struct Scheduler {
-    pub tasks: Arc<Mutex<Vec<(Instant, MessageEvent)>>>,
+    tasks: Arc<Mutex<Vec<(Instant, MessageEvent)>>>,
     sender: Sender<MessageEvent>,
     receiver: Arc<Mutex<Receiver<MessageEvent>>>,
     stop: Arc<Mutex<bool>>,
+    sleep_duration: Arc<Mutex<u64>>
 }
 
 impl Scheduler {
-    pub fn new() -> Self {
+    pub fn new(sleep_duration: u64) -> Self {
         let (sender, receiver) = mpsc::channel();
         let tasks = Arc::new(Mutex::new(Vec::new()));
         Scheduler {
@@ -21,6 +22,7 @@ impl Scheduler {
             sender,
             receiver: Arc::new(Mutex::new(receiver)),
             stop: Arc::new(Mutex::new(false)),
+            sleep_duration: Arc::new(Mutex::new(sleep_duration))
         }
     }
 
@@ -40,17 +42,20 @@ impl Scheduler {
     pub async fn start(&mut self) {
         let stop = self.stop.clone();
         let tasks = self.tasks.clone();
+        let sleep_duration = self.sleep_duration.clone();
+
         tokio::spawn(async move {
             loop {
                 let mut tasks = tasks.lock().await;
                 let stop = stop.lock().await;
+                let sleep_duration = sleep_duration.lock().await;
 
                 if *stop {
                     break;
                 }
 
                 if tasks.is_empty() {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(*sleep_duration)).await;
                     continue;
                 }
 
@@ -78,7 +83,7 @@ mod tests {
     #[tokio::test]
     async fn test_scheduler_with_single_item() {
         let now = Instant::now();
-        let mut scheduler = Scheduler::new();
+        let mut scheduler = Scheduler::new(1);
         scheduler.start().await;
 
         let task = MessageEvent {
@@ -88,13 +93,8 @@ mod tests {
         };
         scheduler.add_task(now + Duration::from_secs(5), task).await;
 
-        // Advance time to just before the task should execute
-        //time::pause();
         assert_eq!(scheduler.get_task_count().await, 1);
-        //time::advance(Duration::from_secs(30)).await;
-        //
-        // sleep
-        time::sleep(Duration::from_secs(15)).await;
+        time::sleep(Duration::from_secs(10)).await;
         assert_eq!(scheduler.get_task_count().await, 0);
     }
 }
