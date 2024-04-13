@@ -63,8 +63,6 @@ impl Scheduler {
                     let now = Instant::now();
                     if now >= *when {
                         info!("Executing task: {:?}", task);
-                        // self.sender.send(task.clone()).unwrap();
-                        //    tasks.lock().await.remove(0);
                         tasks.remove(0);
                     }
                 }
