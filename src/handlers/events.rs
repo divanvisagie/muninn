@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use crate::repos::messages::ChatModel;
 use crate::Resources;
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct MessageEvent {
     pub username: String,
     pub hash: String,

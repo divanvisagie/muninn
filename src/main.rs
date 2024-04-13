@@ -1,17 +1,25 @@
-
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
-use clients::{chat::{self, ChatClient, GptClient}, embeddings::BarnstokkrClient};
-use handlers::{chat::{get_chat, get_context, save_chat, search_chat}, events::test_mtqq, summary::get_summary, user_attributes::{get_attribute, save_attribute}};
+use clients::{
+    chat::{ChatClient, GptClient},
+    embeddings::BarnstokkrClient,
+};
+use handlers::{
+    chat::{get_chat, get_context, save_chat, search_chat},
+    events::test_mtqq,
+    summary::get_summary,
+    user_attributes::{get_attribute, save_attribute},
+};
 use repos::{attributes::FsAttributeRepo, messages::FsMessageRepo};
-use services::user_attributes::UserAttributeService;
 use tokio::sync::Mutex;
+use anyhow::Result;
 
 mod clients;
 mod handlers;
 mod repos;
 mod services;
+mod scheduler;
 
 struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
@@ -30,21 +38,7 @@ impl Resources {
         }
     }
 }
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt::init();
-    
-    let open_ai_embeddings_client = Arc::new(Mutex::new(BarnstokkrClient::new()));
-    let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
-
-    let resources = Resources {
-        message_repo,
-        embeddings_client: open_ai_embeddings_client,
-        chat_client: Arc::new(Mutex::new(GptClient::new())),
-        user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
-    };
-
+async fn start_web_server(resources: Resources) -> Result<()>{
     let data = web::Data::new(resources);
 
     HttpServer::new(move || {
@@ -72,15 +66,28 @@ async fn main() -> std::io::Result<()> {
                 "/api/v1/attribute/{username}/{attribute}",
                 web::get().to(get_attribute),
             )
-            .route(
-                "/api/v1/events/{username}",
-                web::get().to(test_mtqq),
-            )
+            .route("/api/v1/events/{username}", web::get().to(test_mtqq))
     })
     .bind("0.0.0.0:8080")?
     .run()
-    .await
+    .await?;
+
+    Ok(())
 }
 
+#[actix_web::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
 
+    let open_ai_embeddings_client = Arc::new(Mutex::new(BarnstokkrClient::new()));
+    let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
 
+    let resources = Resources {
+        message_repo,
+        embeddings_client: open_ai_embeddings_client,
+        chat_client: Arc::new(Mutex::new(GptClient::new())),
+        user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
+    };
+
+    start_web_server(resources).await
+}
