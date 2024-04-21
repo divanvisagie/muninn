@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use clients::{
-    chat::{ChatClient, GptClient},
-    embeddings::BarnstokkrClient,
+    chat::{ChatClient, GptClient}, embeddings::OllamaEmbeddingsClient,
 };
 use handlers::{
     chat::{get_chat, get_context, get_context_with, save_chat, search_chat},
@@ -32,7 +31,7 @@ impl Resources {
     fn new() -> Self {
         Resources {
             message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
-            embeddings_client: Arc::new(Mutex::new(BarnstokkrClient::new())),
+            embeddings_client: Arc::new(Mutex::new(OllamaEmbeddingsClient::new())),
             chat_client: Arc::new(Mutex::new(GptClient::new())),
             user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
         }
@@ -80,7 +79,7 @@ async fn start_web_server(resources: Resources) -> Result<()>{
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let open_ai_embeddings_client = Arc::new(Mutex::new(BarnstokkrClient::new()));
+    let open_ai_embeddings_client = Arc::new(Mutex::new(OllamaEmbeddingsClient::new()));
     let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
 
     let resources = Resources {
