@@ -195,7 +195,13 @@ impl GptClient {
 
         let response_text = response.unwrap();
 
-        let response_object = parse_response(&response_text).unwrap();
+        let response_object = match parse_response(&response_text) {
+            Ok(response_object) => response_object,
+            Err(e) => {
+                error!("Error: {}, {}", e, response_text);
+                return "Error".to_string();
+            }
+        };
 
         response_object.choices[0].message.content.clone()
     }

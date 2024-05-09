@@ -73,13 +73,24 @@ pub struct ChatService {
 }
 
 // Splits the last 15 elements from the first
-fn split_first_from_last_15(chats: Vec<ChatModel>) -> (Vec<ChatModel>, Vec<ChatModel>) {
+fn split_first_from_last_relevant(chats: Vec<ChatModel>) -> (Vec<ChatModel>, Vec<ChatModel>) {
     let len = chats.len();
     if len > 15 {
         let (first, last) = chats.split_at(len - 15);
         (first.to_vec(), last.to_vec())
     } else {
         (chats.clone(), chats.clone())
+    }
+}
+
+// checks if we are 15 messages since the last system message
+fn check_last_system_message(chats: Vec<ChatModel>) -> bool {
+    let len = chats.len();
+    if len > 14 {
+        let (_, last) = chats.split_at(len - 14);
+        last.iter().any(|chat| chat.role == "system")
+    } else {
+        chats.iter().any(|chat| chat.role == "system")
     }
 }
 
@@ -113,34 +124,37 @@ impl ChatService {
         let mut chatclient = GptClient::new();
 
         let len = chats.len();
-        let mut recent_history = if len > 50 {
-            let (first, last) = split_first_from_last_15(chats);
-            for f in first {
-                summary_context.push(Message {
-                    role: f.role,
-                    content: f.content,
-                });
-            }
-            last.to_vec()
+        let mut recent_history = if len > 15 {
+            let (first, last) = split_first_from_last_relevant(chats);
+            let (_, to_summarize) = split_first_from_last_relevant(first.clone());
+            
+            let to_summarize: Vec<Message> = to_summarize
+                .iter()
+                .map(|chat| Message {
+                    role: chat.role.clone(),
+                    content: chat.content.clone(),
+                })
+                .collect();
+            let result = chatclient.complete(to_summarize).await;
+            let system_summary = ChatModel {
+                role: "system".to_string(),
+                embedding: None,
+                hash: "".to_string(),
+                timestamp: chrono::Utc::now().timestamp(),
+                content: format!(
+                    "{}\n{}",
+                    "The following is an LLM summary of the chat so far:", result
+                ),
+            };
+            let today = chrono::Utc::now().date_naive();
+            let mut message_repo = self.message_repo.lock().await;
+            let _result = message_repo.save_chat(today, username.clone(), system_summary.clone());
+            let mut fin = first.clone();
+            fin.push(system_summary);
+            fin
         } else {
             chats
         };
-
-        // make summary_context no longer mutable
-        let result = chatclient.complete(summary_context).await;
-
-        let system_summary = ChatModel{
-            role: "system".to_string(),
-            embedding: None,
-            hash: "".to_string(),
-            timestamp: chrono::Utc::now().timestamp(),
-            content: format!(
-                "{}\n{}",
-                "The following is an LLM summary of the chat so far:", result
-            ),
-        };
-
-        recent_history.insert(0, system_summary);
 
         // create result with system summary prepended to recent_history
         Ok(recent_history
