@@ -12,7 +12,6 @@ pub async fn get_summary(
     let summary_service = SummaryService {
         message_repo: resources.message_repo.clone(),
         embedding_client: resources.embeddings_client.clone(),
-        chat_client: resources.chat_client.clone(),
     };
 
     let username = &params.0.clone();

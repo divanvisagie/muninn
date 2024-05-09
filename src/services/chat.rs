@@ -1,7 +1,13 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::{clients::embeddings, repos::messages::ChatModel};
+use crate::{
+    clients::{
+        chat::{GptClient, Message},
+        embeddings,
+    },
+    repos::messages::ChatModel,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -66,6 +72,17 @@ pub struct ChatService {
     pub(crate) message_repo: Arc<Mutex<dyn crate::repos::messages::MessageRepo>>,
 }
 
+// Splits the last 15 elements from the first
+fn split_first_from_last_15(chats: Vec<ChatModel>) -> (Vec<ChatModel>, Vec<ChatModel>) {
+    let len = chats.len();
+    if len > 15 {
+        let (first, last) = chats.split_at(len - 15);
+        (first.to_vec(), last.to_vec())
+    } else {
+        (chats.clone(), chats.clone())
+    }
+}
+
 impl ChatService {
     pub async fn get_context(
         &self,
@@ -85,16 +102,54 @@ impl ChatService {
             .filter(|chat| chat.content != "")
             .collect::<Vec<ChatModel>>();
 
+        let system_prompt = "Summarize the following content, picking out what would be important to keep in the context model for a chat with a large language model. This is intended to be read only by the model so don't worry about human readability, optimise for a language model.";
+        let system_prompt = Message {
+            role: "system".to_string(),
+            content: system_prompt.to_string(),
+        };
+        let mut summary_context = Vec::new();
+        summary_context.push(system_prompt);
+
+        let mut chatclient = GptClient::new();
+
         let len = chats.len();
-        let recent_history = if len > 50 {
-            chats[len - 15..].to_vec()
+        let mut recent_history = if len > 50 {
+            let (first, last) = split_first_from_last_15(chats);
+            for f in first {
+                summary_context.push(Message {
+                    role: f.role,
+                    content: f.content,
+                });
+            }
+            last.to_vec()
         } else {
             chats
         };
 
+        // make summary_context no longer mutable
+        let result = chatclient.complete(summary_context).await;
+
+        let system_summary = ChatModel{
+            role: "system".to_string(),
+            embedding: None,
+            hash: "".to_string(),
+            timestamp: chrono::Utc::now().timestamp(),
+            content: format!(
+                "{}\n{}",
+                "The following is an LLM summary of the chat so far:", result
+            ),
+        };
+
+        recent_history.insert(0, system_summary);
+
+        // create result with system summary prepended to recent_history
         Ok(recent_history
             .iter()
-            .map(|chat| ChatResponse::from_model(chat.clone()))
+            .map(|chat| {
+                let to_print = format!("{}: {}", chat.role, chat.content);
+                info!(">>> {}", to_print);
+                ChatResponse::from_model(chat.clone())
+            })
             .collect())
     }
 
@@ -314,7 +369,10 @@ mod tests {
         };
 
         let context = chat_handler
-            .get_context("test_user".to_string().borrow(), "my_message".to_string().borrow())
+            .get_context(
+                "test_user".to_string().borrow(),
+                "my_message".to_string().borrow(),
+            )
             .await
             .unwrap();
         assert_eq!(context.len(), 1);

@@ -12,8 +12,8 @@ struct ChatRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
-    role: String,
-    content: String,
+   pub role: String,
+   pub content: String,
 }
 
 impl fmt::Display for Message {
@@ -151,11 +151,9 @@ impl GptClient {
         GptClient {}
     }
 }
-#[allow(dead_code)]
-#[async_trait::async_trait]
-impl ChatClient for GptClient {
+impl GptClient {
     //complete method
-    async fn complete(&mut self, context: Vec<Message>) -> String {
+    pub async fn complete(&mut self, context: Vec<Message>) -> String {
         // Retrieve the API key from the environment variable
         let api_key =
             env::var("OPENAI_API_KEY").expect("Missing OPENAI_API_KEY environment variable");

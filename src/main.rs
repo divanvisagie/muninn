@@ -23,7 +23,6 @@ mod scheduler;
 struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
     embeddings_client: Arc<Mutex<dyn clients::embeddings::EmbeddingsClient>>,
-    chat_client: Arc<Mutex<dyn ChatClient>>,
     user_attributes_repo: Arc<Mutex<FsAttributeRepo>>,
 }
 
@@ -32,7 +31,6 @@ impl Resources {
         Resources {
             message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
             embeddings_client: Arc::new(Mutex::new(OllamaEmbeddingsClient::new())),
-            chat_client: Arc::new(Mutex::new(GptClient::new())),
             user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
         }
     }
@@ -81,7 +79,6 @@ async fn main() -> Result<()> {
     let resources = Resources {
         message_repo,
         embeddings_client: open_ai_embeddings_client,
-        chat_client: Arc::new(Mutex::new(GptClient::new())),
         user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
     };
 
