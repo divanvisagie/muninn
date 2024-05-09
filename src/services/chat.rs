@@ -314,7 +314,7 @@ mod tests {
         };
 
         let context = chat_handler
-            .get_context("test_user".to_string().borrow())
+            .get_context("test_user".to_string().borrow(), "my_message".to_string().borrow())
             .await
             .unwrap();
         assert_eq!(context.len(), 1);

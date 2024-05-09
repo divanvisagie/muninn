@@ -52,26 +52,6 @@ pub async fn search_chat(
     HttpResponse::Ok().json(chat)
 }
 
-pub async fn get_context(
-    resources: web::Data<Resources>,
-    params: web::Path<(String,)>,
-) -> HttpResponse {
-    let resources = resources.into_inner();
-    let chat_service = ChatService {
-        embedding_client: resources.embeddings_client.clone(),
-        message_repo: resources.message_repo.clone(),
-    };
-    let username = &params.0.clone();
-    let chat = chat_service.get_context(username).await;
-    let chat = match chat {
-        Ok(chat) => chat,
-        Err(_) => {
-            error!("Error getting chat context");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-    HttpResponse::Ok().json(chat)
-}
 
 pub async fn get_context_with(
     resources: web::Data<Resources>,
