@@ -85,8 +85,7 @@ pub async fn get_context_with(
     };
     let username = &params.0.clone();
     let chat_request = payload.into_inner();
-    //    let chat = chat_service.get_context_with(username, chat).await;
-    let chat = chat_service.get_context(username).await;
+    let chat = chat_service.get_context(username, &chat_request.content).await;
 
     let chat = match chat {
         Ok(chat) => chat,

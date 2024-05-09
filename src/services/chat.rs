@@ -3,7 +3,7 @@ use tracing::{error, info};
 
 use crate::{clients::embeddings, repos::messages::ChatModel};
 use std::sync::Arc;
-use tokio::sync::Mutex; 
+use tokio::sync::Mutex;
 
 #[derive(Deserialize, Serialize)]
 pub struct ChatRequest {
@@ -16,7 +16,6 @@ pub struct ChatRequest {
 pub struct SearchRequest {
     pub content: String,
 }
-
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ChatResponse {
@@ -68,30 +67,32 @@ pub struct ChatService {
 }
 
 impl ChatService {
-    pub async fn get_context(&self, username: &String) -> Result<Vec<ChatResponse>, ()> {
+    pub async fn get_context(
+        &self,
+        username: &String,
+        text: &String,
+    ) -> Result<Vec<ChatResponse>, ()> {
         let chats = self
             .message_repo
             .lock()
             .await
             .get_all_for_user(username.clone());
 
-        //lets cut off at the last 10 messages
-        let chats = match chats {
-            Ok(chats) => {
-                let len = chats.len();
-                if len > 50 {
-                    chats[len - 10..].to_vec()
-                } else {
-                    chats
-                }
-            }
-            Err(_) => {
-                error!("Failed to get_context");
-                return Err(());
-            }
+        // lets filter out any messages that might be blank
+        let chats = chats
+            .unwrap()
+            .into_iter()
+            .filter(|chat| chat.content != "")
+            .collect::<Vec<ChatModel>>();
+
+        let len = chats.len();
+        let recent_history = if len > 50 {
+            chats[len - 15..].to_vec()
+        } else {
+            chats
         };
 
-        Ok(chats
+        Ok(recent_history
             .iter()
             .map(|chat| ChatResponse::from_model(chat.clone()))
             .collect())
@@ -154,9 +155,7 @@ impl ChatService {
         let repo = self.message_repo.lock().await;
 
         let embeddings_client = self.embedding_client.lock().await;
-        let query_vector = embeddings_client
-            .get_embeddings(query.clone())
-            .await;
+        let query_vector = embeddings_client.get_embeddings(query.clone()).await;
         let query_vector = match query_vector {
             Ok(query_vector) => query_vector,
             Err(_) => {
@@ -165,12 +164,12 @@ impl ChatService {
             }
         };
 
-        let founds = repo.embeddings_search_for_user(username.clone(), query_vector).await;
+        let founds = repo
+            .embeddings_search_for_user(username.clone(), query_vector)
+            .await;
         let founds = founds
             .iter()
-            .map(|(similarity, chat)| {
-                SearchResponse::from_chat_model(chat.clone(), *similarity)
-            })
+            .map(|(similarity, chat)| SearchResponse::from_chat_model(chat.clone(), *similarity))
             .collect();
         Ok(founds)
     }

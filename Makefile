@@ -7,11 +7,11 @@ publish:
 	sh scripts/publish_container.sh
 
 pushpi:
-	ssh heimdallr.local "mkdir -p ~/src/" \
-	&& rsync -av --progress src heimdallr.local:~/src/$(APP_NAME) \
-    && rsync -av --progress Cargo.toml heimdallr.local:~/src/$(APP_NAME) \
-	&& rsync -av --progress Cargo.lock heimdallr.local:~/src/$(APP_NAME) \
-	&& rsync -av --progress Makefile heimdallr.local:~/src/$(APP_NAME) \
+	ssh $(PI) "mkdir -p ~/src/" \
+	&& rsync -av --progress src $(PI):~/src/$(APP_NAME) \
+    && rsync -av --progress Cargo.toml $(PI):~/src/$(APP_NAME) \
+	&& rsync -av --progress Cargo.lock $(PI):~/src/$(APP_NAME) \
+	&& rsync -av --progress Makefile $(PI):~/src/$(APP_NAME) \
 
 install:
 	# stop the service if it already exists
