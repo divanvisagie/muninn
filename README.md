@@ -14,10 +14,10 @@ sequenceDiagram
     u ->> r: Sends message
     activate r
     r ->> m: Save user input message
-    r ->> m: Get context
-    m -->> r: Context Response
-    r ->> l: Generate with context + user message
-    l -->>  r: LLM Response
+    r ->>+ m: Get context
+    m -->>- r: Context Response
+    r ->>+ l: Generate with context + user message
+    l -->>-  r: LLM Response
     r ->> m: Save LLM response message
     r -->> u: LLM Response
     deactivate r
