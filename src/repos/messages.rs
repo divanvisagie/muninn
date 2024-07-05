@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use tracing::error;
 
-use crate::clients::{self, embeddings::EmbeddingsClient};
+use crate::clients::{
+    self,
+    embeddings::{ollama::OllamaEmbeddingsClient, EmbeddingsClient},
+};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ChatModel {
@@ -14,7 +17,7 @@ pub struct ChatModel {
     pub embedding: Option<Vec<f32>>,
     pub timestamp: i64,
 }
-pub struct FsMessageRepo{
+pub struct FsMessageRepo {
     memory: std::collections::HashMap<(String, String), ChatModel>, // Update HashMap key to include user
 }
 
@@ -164,15 +167,18 @@ impl MessageRepo for FsMessageRepo {
         };
 
         let mut ranked_chats: Vec<(f32, ChatModel)> = vec![];
-        let embedding_client = clients::embeddings::BarnstokkrClient::new();
+        let model = Some("all-minilm".to_string());
+        let embedding_client = clients::embeddings::ollama::OllamaEmbeddingsClient::new(&model);
 
         for chat in chats {
             let chat_embedding = match &chat.embedding {
                 Some(val) => val.clone(),
                 None => {
-                    let embedding = embedding_client.get_embeddings(chat.content.clone()).await;
+                    let embedding = embedding_client
+                        .get_embeddings(&[chat.content.as_str()])
+                        .await;
                     match embedding {
-                        Ok(val) => val,
+                        Ok(val) => val[0].clone(),
                         Err(_) => {
                             error!("Failed to get embeddings");
                             return vec![];
@@ -193,4 +199,3 @@ impl MessageRepo for FsMessageRepo {
         Ok(chats)
     }
 }
-

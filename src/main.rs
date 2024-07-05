@@ -1,24 +1,22 @@
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
-use clients::{
-    chat::{ChatClient, GptClient}, embeddings::OllamaEmbeddingsClient,
-};
+use anyhow::Result;
+use clients::embeddings::ollama::OllamaEmbeddingsClient;
 use handlers::{
-    chat::{get_chat,get_context_with, save_chat, search_chat},
+    chat::{get_chat, get_context_with, save_chat, search_chat},
     events::test_mtqq,
     summary::get_summary,
     user_attributes::{get_attribute, save_attribute},
 };
 use repos::{attributes::FsAttributeRepo, messages::FsMessageRepo};
 use tokio::sync::Mutex;
-use anyhow::Result;
 
 mod clients;
 mod handlers;
 mod repos;
-mod services;
 mod scheduler;
+mod services;
 
 struct Resources {
     message_repo: Arc<Mutex<dyn repos::messages::MessageRepo>>,
@@ -28,21 +26,25 @@ struct Resources {
 
 impl Resources {
     fn new() -> Self {
+        let client = OllamaEmbeddingsClient::new(&Some("all-minilm".to_string()));
         Resources {
             message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
-            embeddings_client: Arc::new(Mutex::new(OllamaEmbeddingsClient::new())),
+            embeddings_client: Arc::new(Mutex::new(client)),
             user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
         }
     }
 }
-async fn start_web_server(resources: Resources) -> Result<()>{
+async fn start_web_server(resources: Resources) -> Result<()> {
     let data = web::Data::new(resources);
 
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .route("/api/v1/chat/{username}", web::post().to(save_chat))
-            .route("/api/v1/chat/{username}/context", web::post().to(get_context_with))
+            .route(
+                "/api/v1/chat/{username}/context",
+                web::post().to(get_context_with),
+            )
             .route("/api/v1/chat/{username}/{id}", web::get().to(get_chat))
             .route(
                 "/api/v1/chat/{username}/search",
@@ -73,7 +75,8 @@ async fn start_web_server(resources: Resources) -> Result<()>{
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let open_ai_embeddings_client = Arc::new(Mutex::new(OllamaEmbeddingsClient::new()));
+    let model = Some("all-minilm".to_string());
+    let open_ai_embeddings_client = Arc::new(Mutex::new(OllamaEmbeddingsClient::new(&model)));
     let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
 
     let resources = Resources {

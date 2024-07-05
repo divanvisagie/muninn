@@ -183,7 +183,7 @@ impl ChatService {
         chat: ChatRequest,
     ) -> Result<ChatResponse, ()> {
         let embeddings_client = self.embedding_client.lock().await;
-        let embeddings_result = embeddings_client.get_embeddings(chat.content.clone()).await;
+        let embeddings_result = embeddings_client.get_embeddings(&[chat.content.as_str()]).await;
 
         let embeddings = match embeddings_result {
             Ok(embeddings) => embeddings,
@@ -234,9 +234,9 @@ impl ChatService {
         let repo = self.message_repo.lock().await;
 
         let embeddings_client = self.embedding_client.lock().await;
-        let query_vector = embeddings_client.get_embeddings(query.clone()).await;
+        let query_vector = embeddings_client.get_embeddings(&[query.as_str()]).await;
         let query_vector = match query_vector {
-            Ok(query_vector) => query_vector,
+            Ok(query_vector) => query_vector[0].to_owned(),
             Err(_) => {
                 error!("Failed to get embeddings");
                 return Err(());
