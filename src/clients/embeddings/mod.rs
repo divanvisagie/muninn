@@ -15,17 +15,17 @@ struct EmbeddingsRequest {
 }
 
 #[allow(dead_code)]
-pub enum EmbeddingsClientImpl {
+pub enum EmbeddingsClientInstance {
     Ollama(OllamaEmbeddingsClient),
     FastEmbed(FastEmbeddingsClient),
 }
 
 #[async_trait]
-impl EmbeddingsClient for EmbeddingsClientImpl {
+impl EmbeddingsClient for EmbeddingsClientInstance {
     async fn get_embeddings(&self, text: &[&str]) -> Result<Vec<Vec<f32>>> {
         match self {
-            EmbeddingsClientImpl::Ollama(client) => client.get_embeddings(text).await,
-            EmbeddingsClientImpl::FastEmbed(client) => client.get_embeddings(text).await,
+            EmbeddingsClientInstance::Ollama(client) => client.get_embeddings(text).await,
+            EmbeddingsClientInstance::FastEmbed(client) => client.get_embeddings(text).await,
         }
     }
 }
@@ -35,3 +35,20 @@ pub trait EmbeddingsClient: Send + Sync {
     async fn get_embeddings(&self, text: &[&str]) -> Result<Vec<Vec<f32>>>;
 }
 
+
+// create mock type for testing
+pub struct MockEmbeddingsClient;
+
+impl MockEmbeddingsClient {
+    #[allow(unused)]
+    pub fn new() -> Self {
+        MockEmbeddingsClient {}
+    }
+}
+
+#[async_trait]
+impl EmbeddingsClient for MockEmbeddingsClient {
+    async fn get_embeddings(&self, _text: &[&str]) -> Result<Vec<Vec<f32>>> {
+        Ok(vec![vec![0.0, 0.0, 0.0]])
+    }
+}

@@ -6,7 +6,6 @@ use crate::repos::messages::MessageRepo;
 
 pub struct SummaryService {
     pub message_repo: Arc<Mutex<dyn MessageRepo>>,
-    pub embedding_client: Arc<Mutex<dyn crate::clients::embeddings::EmbeddingsClient>>,
 }
 
 impl SummaryService {
