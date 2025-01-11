@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use serde::Deserialize;
 use tokio::sync::Mutex;
@@ -7,6 +7,7 @@ use tracing::info;
 use crate::repos::attributes::AttributeRepo;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct AttributeRequest {
     pub attribute: String,
     pub value: String,
@@ -16,6 +17,7 @@ pub struct UserAttributeService {
     pub attribute_repo: Arc<Mutex<dyn AttributeRepo>>,
 }
 
+#[allow(dead_code)]
 impl UserAttributeService {
     pub async fn save_attribute(
         &mut self,

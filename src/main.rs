@@ -1,22 +1,19 @@
-use std::{net::SocketAddr, sync::Arc};
-
 use anyhow::Result;
 use axum::{routing::get, routing::post, Router};
-use clients::{
-    chat::{ChatClient, GptClient},
-    embeddings::OllamaEmbeddingsClient,
-};
 use handlers::handle_request_message::handle_request_message;
-use repos::{attributes::FsAttributeRepo, messages::FsMessageRepo};
-use tokio::{net::TcpListener, sync::Mutex};
 
 mod clients;
 mod handlers;
 mod repos;
 mod services;
+mod layers;
+mod capabilities;
 
 #[derive(Clone)]
-struct Resources {}
+#[allow(dead_code)]
+struct Resources {
+    bot_name: String
+}
 
 pub async fn ping() -> String {
     "pong".to_string()
@@ -24,7 +21,9 @@ pub async fn ping() -> String {
 
 impl Resources {
     fn new() -> Self {
-        Resources {}
+        Resources {
+            bot_name: "Muninn".to_string()
+        }
     }
 }
 async fn start_web_server(resources: Resources) -> Result<()> {
@@ -41,15 +40,8 @@ async fn start_web_server(resources: Resources) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-
-    // let open_ai_embeddings_client = Arc::new(Mutex::new(OllamaEmbeddingsClient::new()));
-    // let message_repo = Arc::new(Mutex::new(FsMessageRepo::new()));
-
-    let resources = Resources {
-        // message_repo,
-        // embeddings_client: open_ai_embeddings_client,
-        // user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
-    };
+    
+    let resources = Resources::new();
 
     start_web_server(resources).await
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use tracing::error;
 
+#[allow(dead_code)]
 pub struct AttributeModel {
     pub attribute: String,
     pub value: String,
@@ -24,6 +25,7 @@ pub struct FsAttributeRepo {
     memory: HashMap<String, HashMap<String, String>>,
 }
 
+#[allow(dead_code)]
 impl FsAttributeRepo {
     pub fn new() -> Self {
         FsAttributeRepo {

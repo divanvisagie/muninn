@@ -26,6 +26,7 @@ struct Data {
 }
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait EmbeddingsClient: Send + Sync {
     async fn get_embeddings(
         &self,

@@ -1,8 +1,8 @@
 POST http://localhost:8080/api/v1/message
 {
-	"chatId": 5,
-    "text": "Hello, I am a chatbot!",
-    "telegramUserId": 192455
+	"chat_id": 5,
+    "text": "/test",
+    "telegram_user_id": 192455
 }
 HTTP 200
 [Asserts]
