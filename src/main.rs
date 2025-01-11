@@ -1,55 +1,44 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
-use actix_web::{web, App, HttpResponse, HttpServer};
 use anyhow::Result;
+use axum::{routing::get, routing::post, Router};
 use clients::{
     chat::{ChatClient, GptClient},
     embeddings::OllamaEmbeddingsClient,
 };
-use handlers::{
-    handle_request_message::handle_request_message
-};
+use handlers::handle_request_message::handle_request_message;
 use repos::{attributes::FsAttributeRepo, messages::FsMessageRepo};
-use tokio::sync::Mutex;
+use tokio::{net::TcpListener, sync::Mutex};
 
 mod clients;
 mod handlers;
 mod repos;
 mod services;
 
-struct Resources {
-}
+#[derive(Clone)]
+struct Resources {}
 
-pub async fn ping() -> HttpResponse {
-    HttpResponse::Ok().json("pong")
+pub async fn ping() -> String {
+    "pong".to_string()
 }
 
 impl Resources {
     fn new() -> Self {
-        Resources {
-            // message_repo: Arc::new(Mutex::new(FsMessageRepo::new())),
-            // embeddings_client: Arc::new(Mutex::new(OllamaEmbeddingsClient::new())),
-            // user_attributes_repo: Arc::new(Mutex::new(FsAttributeRepo::new())),
-        }
+        Resources {}
     }
 }
 async fn start_web_server(resources: Resources) -> Result<()> {
-    let data = web::Data::new(resources);
+    let app = Router::new()
+        .route("/api/v1/message", post(handle_request_message))
+        .route("/ping", get(ping))
+        .with_state(resources);
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(data.clone())
-            .route("/api/v1/message", web::post().to(handle_request_message))
-            .route("/ping", web::get().to(ping))
-    })
-    .bind("localhost:8080")?
-    .run()
-    .await?;
-
+    let listener = tokio::net::TcpListener::bind("localhost:8080").await.unwrap();
+    axum::serve(listener, app).await?;
     Ok(())
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
@@ -64,4 +53,3 @@ async fn main() -> Result<()> {
 
     start_web_server(resources).await
 }
-

@@ -6,7 +6,7 @@ main:
 publish:
 	sh scripts/publish_container.sh
 
-pushpi:
+deploy:
 	ssh $(PI) "mkdir -p ~/src/" \
 	&& rsync -av --progress src $(PI):~/src/$(APP_NAME) \
     && rsync -av --progress Cargo.toml $(PI):~/src/$(APP_NAME) \

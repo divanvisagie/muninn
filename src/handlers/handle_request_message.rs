@@ -1,4 +1,10 @@
-use actix_web::{web, HttpResponse};
+use axum::{
+    extract::Json,
+    extract::State,
+    routing::post,
+    response::IntoResponse,
+    Router,
+};
 use serde::Deserialize;
 
 use crate::Resources;
@@ -20,8 +26,8 @@ pub struct RequestMessage {
 }
 
 pub async fn handle_request_message(
-    resources: web::Data<Resources>,
-    payload: web::Json<RequestMessage>,
-) -> HttpResponse {
-    HttpResponse::Ok().json("Hello, world!")
+    State(resources): State<Resources>,
+    Json(payload): Json<RequestMessage>
+) -> String {
+    "Hello, world!".to_string()
 }
