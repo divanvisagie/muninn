@@ -8,29 +8,29 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 pub enum CapabilityVariant {
-    TestCapability(TestCapability),
-    StartCapability(StartCapability),
+    Test(TestCapability),
+    Start(StartCapability),
 }
 
 impl CapabilityVariant {
     pub async fn check(&self, req: &RequestMessage) -> f32 {
         match self {
-            CapabilityVariant::TestCapability(capability) => capability.check(req).await,
-            CapabilityVariant::StartCapability(capability) => capability.check(req).await,
+            CapabilityVariant::Test(capability) => capability.check(req).await,
+            CapabilityVariant::Start(capability) => capability.check(req).await,
         }
     }
 
     pub async fn execute(&self, req: &RequestMessage) -> Result<()> {
         match self {
-            CapabilityVariant::TestCapability(capability) => capability.execute(req).await,
-            CapabilityVariant::StartCapability(capability) => capability.execute(req).await,
+            CapabilityVariant::Test(capability) => capability.execute(req).await,
+            CapabilityVariant::Start(capability) => capability.execute(req).await,
         }
     }
 
     pub fn get_name(&self) -> String {
         match self {
-            CapabilityVariant::TestCapability(capability) => capability.get_name(),
-            CapabilityVariant::StartCapability(capability) => capability.get_name(),
+            CapabilityVariant::Test(capability) => capability.get_name(),
+            CapabilityVariant::Start(capability) => capability.get_name(),
         }
     }
 }
@@ -45,8 +45,8 @@ impl SelectorLayer {
         let start = StartCapability::new();
         SelectorLayer {
             capabilities: vec![
-                CapabilityVariant::TestCapability(test),
-                CapabilityVariant::StartCapability(start),
+                CapabilityVariant::Test(test),
+                CapabilityVariant::Start(start),
             ],
         }
     }
